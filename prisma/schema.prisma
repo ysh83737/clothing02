@@ -1,0 +1,73 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// 服装品类
+model ClothingCategory {
+  id        String   @id @default(cuid())
+  name      String   // 品类名称，如"裤子"、"衬衫"
+  nameEn    String?  // 英文名称
+  createdAt DateTime @default(now())
+
+  items ClothingItem[]
+}
+
+// 服装库存
+model ClothingItem {
+  id                 String   @id @default(cuid())
+  name               String   // 服装名称，如"M码黑色裤子"
+  categoryId         String
+  size               String?  // 尺码，如"S"、"M"、"L"、"XL"
+  totalQuantity      Int      @default(0) // 总库存数量
+  availableQuantity  Int      @default(0) // 可用数量（未被借出）
+  unit               String   @default("件") // 单位
+  createdAt          DateTime @default(now())
+
+  category ClothingCategory @relation(fields: [categoryId], references: [id])
+  loanRecords LoanRecord[]
+}
+
+// 员工
+model Employee {
+  id         String   @id @default(cuid())
+  name       String
+  department String?
+  phone      String?
+  createdAt  DateTime @default(now())
+
+  loanRecords LoanRecord[]
+}
+
+// 出借活动
+model LoanEvent {
+  id          String   @id @default(cuid())
+  name        String   // 活动名称，如"2024年会"
+  description String?
+  status      String   @default("active") // active, closed
+  createdAt   DateTime @default(now())
+
+  loanRecords LoanRecord[]
+}
+
+// 借出明细
+model LoanRecord {
+  id           String   @id @default(cuid())
+  loanEventId  String
+  employeeId   String
+  clothingItemId String
+  quantity     Int      // 借出数量
+  status       String   @default("borrowed") // borrowed, returned, lost
+  borrowedAt   DateTime @default(now())
+  returnedAt   DateTime?
+
+  loanEvent  LoanEvent  @relation(fields: [loanEventId], references: [id])
+  employee   Employee   @relation(fields: [employeeId], references: [id])
+  clothingItem ClothingItem @relation(fields: [clothingItemId], references: [id])
+}
