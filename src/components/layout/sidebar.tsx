@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   {
@@ -106,11 +105,6 @@ export function Sidebar() {
                 >
                   <Icon className="h-5 w-5" />
                   <span>{item.title}</span>
-                  {isActive && (
-                    <Badge variant="secondary" className="ml-auto">
-                      当前
-                    </Badge>
-                  )}
                 </Link>
               );
             })}
