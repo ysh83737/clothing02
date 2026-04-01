@@ -153,22 +153,26 @@ export async function PUT(request: Request) {
     // 处理归还
     if (status === "returned") {
       const returnQuantity = quantity || record.quantity;
+      const currentReturned = record.returnedQuantity || 0;
 
-      if (returnQuantity > record.quantity) {
+      if (returnQuantity > record.quantity - currentReturned) {
         return NextResponse.json(
-          { success: false, error: "归还数量不能超过借出数量" },
+          { success: false, error: "归还数量不能超过待归还数量" },
           { status: 400 }
         );
       }
+
+      const newReturnedQuantity = currentReturned + returnQuantity;
+      const isFullyReturned = newReturnedQuantity === record.quantity;
 
       await prisma.$transaction(async (tx) => {
         // 更新记录状态
         await tx.loanRecord.update({
           where: { id },
           data: {
-            status: "returned",
-            returnedAt: new Date(),
-            quantity: returnQuantity,
+            status: isFullyReturned ? "returned" : "borrowed",
+            returnedAt: isFullyReturned ? new Date() : null,
+            returnedQuantity: newReturnedQuantity,
           },
         });
 

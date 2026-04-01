@@ -58,16 +58,17 @@ model LoanEvent {
 
 // 借出明细
 model LoanRecord {
-  id           String   @id @default(cuid())
-  loanEventId  String
-  employeeId   String
-  clothingItemId String
-  quantity     Int      // 借出数量
-  status       String   @default("borrowed") // borrowed, returned, lost
-  borrowedAt   DateTime @default(now())
-  returnedAt   DateTime?
+  id              String   @id @default(cuid())
+  loanEventId     String
+  employeeId      String
+  clothingItemId  String
+  quantity        Int      // 借出数量（原始数量）
+  returnedQuantity Int     @default(0) // 已归还数量
+  status          String   @default("borrowed") // borrowed, returned, lost
+  borrowedAt      DateTime @default(now())
+  returnedAt      DateTime?
 
-  loanEvent  LoanEvent  @relation(fields: [loanEventId], references: [id])
-  employee   Employee   @relation(fields: [employeeId], references: [id])
+  loanEvent  LoanEvent     @relation(fields: [loanEventId], references: [id])
+  employee   Employee      @relation(fields: [employeeId], references: [id])
   clothingItem ClothingItem @relation(fields: [clothingItemId], references: [id])
 }

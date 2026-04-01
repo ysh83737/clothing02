@@ -27,6 +27,7 @@ import { toast } from "sonner";
 interface LoanRecord {
   id: string;
   quantity: number;
+  returnedQuantity: number;
   status: string;
   borrowedAt: string;
   returnedAt: string | null;
@@ -76,7 +77,8 @@ export default function ReturnPage() {
 
   const openReturnDialog = (record: LoanRecord) => {
     setSelectedRecord(record);
-    setReturnQuantity(record.quantity.toString());
+    const remainingQty = record.quantity - (record.returnedQuantity || 0);
+    setReturnQuantity(remainingQty.toString());
     setIsReturnDialogOpen(true);
   };
 
@@ -192,7 +194,7 @@ export default function ReturnPage() {
               <TableHead>员工</TableHead>
               <TableHead>服装</TableHead>
               <TableHead>活动</TableHead>
-              <TableHead className="text-right">借出数量</TableHead>
+              <TableHead className="text-right">待归还</TableHead>
               <TableHead>借出时间</TableHead>
               <TableHead className="text-center">操作</TableHead>
             </TableRow>
@@ -233,7 +235,7 @@ export default function ReturnPage() {
                     <Badge variant="secondary">{record.loanEvent.name}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {record.quantity} {record.clothingItem.unit}
+                    {record.quantity - (record.returnedQuantity || 0)} {record.clothingItem.unit}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {new Date(record.borrowedAt).toLocaleDateString("zh-CN")}
@@ -287,9 +289,9 @@ export default function ReturnPage() {
                   <span>{selectedRecord.loanEvent.name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">借出数量:</span>
+                  <span className="text-muted-foreground">待归还:</span>
                   <span>
-                    {selectedRecord.quantity} {selectedRecord.clothingItem.unit}
+                    {selectedRecord.quantity - (selectedRecord.returnedQuantity || 0)} {selectedRecord.clothingItem.unit}
                   </span>
                 </div>
               </div>
@@ -299,12 +301,12 @@ export default function ReturnPage() {
                   id="return-qty"
                   type="number"
                   min="1"
-                  max={selectedRecord.quantity}
+                  max={selectedRecord.quantity - (selectedRecord.returnedQuantity || 0)}
                   value={returnQuantity}
                   onChange={(e) => setReturnQuantity(e.target.value)}
                 />
                 <p className="text-sm text-muted-foreground">
-                  最多可归还 {selectedRecord.quantity}{" "}
+                  最多可归还 {selectedRecord.quantity - (selectedRecord.returnedQuantity || 0)}{" "}
                   {selectedRecord.clothingItem.unit}
                 </p>
               </div>
