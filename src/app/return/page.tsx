@@ -180,7 +180,7 @@ export default function ReturnPage() {
           />
         </div>
         <div className="flex gap-2">
-          <Badge variant="default" className="px-3 py-1">
+          <Badge variant="default" className="px-3 py-1 h-full">
             待处理: {filteredRecords.length}
           </Badge>
         </div>
