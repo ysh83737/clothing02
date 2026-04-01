@@ -193,20 +193,21 @@ export async function PUT(request: Request) {
     if (status === "lost") {
       const lostQuantity = quantity || record.quantity;
 
-      if (lostQuantity > record.quantity) {
+      const pendingQuantity = record.quantity - (record.returnedQuantity || 0);
+      if (lostQuantity > pendingQuantity) {
         return NextResponse.json(
-          { success: false, error: "丢失数量不能超过借出数量" },
+          { success: false, error: "丢失数量不能超过待归还数量" },
           { status: 400 }
         );
       }
 
       await prisma.$transaction(async (tx) => {
-        // 更新记录状态
+        // 更新记录状态：quantity 保持原始数量，更新 returnedQuantity 以标记已处理
         await tx.loanRecord.update({
           where: { id },
           data: {
             status: "lost",
-            quantity: lostQuantity,
+            returnedQuantity: record.returnedQuantity + lostQuantity,
           },
         });
 

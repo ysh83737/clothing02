@@ -45,7 +45,7 @@ export async function GET() {
         .reduce((sum, r) => sum + r.quantity, 0);
       const totalActive = event.loanRecords
         .filter((r) => r.status === "borrowed")
-        .reduce((sum, r) => sum + r.quantity, 0);
+        .reduce((sum, r) => sum + r.quantity - (r.returnedQuantity || 0), 0);
 
       return {
         ...event,
