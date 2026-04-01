@@ -80,6 +80,8 @@ export default function LoanPage() {
   const [records, setRecords] = useState<LoanRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [selectEmployees, setSelectEmployees] = useState<{value: string; label: string}[]>([]);
+  const [selectInventory, setSelectInventory] = useState<{value: string; label: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [isAddEventDialogOpen, setIsAddEventDialogOpen] = useState(false);
@@ -114,9 +116,21 @@ export default function LoanPage() {
 
       if (eventData.success) setEvents(eventData.data);
       if (recordData.success) setRecords(recordData.data);
-      if (employeeData.success) setEmployees(employeeData.data);
-      if (inventoryData.success)
-        setInventory(inventoryData.data.filter((i: InventoryItem) => i.availableQuantity > 0));
+      if (employeeData.success) {
+        setEmployees(employeeData.data);
+        setSelectEmployees(employeeData.data.map((e: Employee) => ({
+          value: e.id,
+          label: e.name
+        })));
+      }
+      if (inventoryData.success) {
+        const availItems = inventoryData.data.filter((i: InventoryItem) => i.availableQuantity > 0);
+        setInventory(availItems);
+        setSelectInventory(availItems.map((i: InventoryItem) => ({
+          value: i.id,
+          label: i.name
+        })));
+      }
     } catch {
       toast.error("获取数据失败");
     } finally {
@@ -503,6 +517,7 @@ export default function LoanPage() {
               <Label>选择员工 *</Label>
               <Select
                 value={loanData.employeeId}
+                items={selectEmployees}
                 onValueChange={(v) =>
                   setLoanData({ ...loanData, employeeId: v || "" })
                 }
@@ -523,6 +538,7 @@ export default function LoanPage() {
               <Label>选择服装 *</Label>
               <Select
                 value={loanData.clothingItemId}
+                items={selectInventory}
                 onValueChange={(v) =>
                   setLoanData({ ...loanData, clothingItemId: v || "" })
                 }

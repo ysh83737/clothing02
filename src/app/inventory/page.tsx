@@ -56,6 +56,7 @@ interface InventoryItem {
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [selectCategories, setSelectCategories] = useState<{value: string; label: string}[]>([])
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -91,7 +92,14 @@ export default function InventoryPage() {
       const inventoryData = await inventoryRes.json();
       const categoryData = await categoryRes.json();
       if (inventoryData.success) setItems(inventoryData.data);
-      if (categoryData.success) setCategories(categoryData.data);
+      if (categoryData.success) {
+        const data: Category[] = categoryData.data
+        setCategories(data);
+        setSelectCategories([
+          { value: "all", label: "所有品类"},
+          ...data.map((item) => ({value: item.id, label: item.name }))
+        ])
+      }
     } catch {
       toast.error("获取数据失败");
     } finally {
@@ -284,15 +292,14 @@ export default function InventoryPage() {
             className="pl-9"
           />
         </div>
-        <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+        <Select value={selectedCategory} items={selectCategories} onValueChange={handleCategoryChange}>
           <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="筛选品类" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">所有品类</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>
-                {cat.name}
+            {selectCategories.map((cat) => (
+              <SelectItem key={cat.value} value={cat.value}>
+                {cat.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -409,6 +416,7 @@ export default function InventoryPage() {
               <Label htmlFor="category">品类 *</Label>
               <Select
                 value={formData.categoryId}
+                items={selectCategories}
                 onValueChange={(v) => setFormData({ ...formData, categoryId: v || "" })}
               >
                 <SelectTrigger>
