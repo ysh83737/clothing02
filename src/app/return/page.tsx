@@ -56,6 +56,8 @@ export default function ReturnPage() {
   const [isLostDialogOpen, setIsLostDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<LoanRecord | null>(null);
   const [returnQuantity, setReturnQuantity] = useState("");
+  const [lostReason, setLostReason] = useState("");
+  const [lostRemark, setLostRemark] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -86,6 +88,8 @@ export default function ReturnPage() {
     setSelectedRecord(record);
     const remainingQty = record.quantity - (record.returnedQuantity || 0);
     setReturnQuantity(remainingQty.toString());
+    setLostReason("");
+    setLostRemark("");
     setIsLostDialogOpen(true);
   };
 
@@ -133,13 +137,14 @@ export default function ReturnPage() {
     }
 
     try {
-      const res = await fetch("/api/loan-record", {
-        method: "PUT",
+      const res = await fetch("/api/lost-record", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: selectedRecord.id,
-          status: "lost",
+          loanRecordId: selectedRecord.id,
           quantity: qty,
+          reason: lostReason || null,
+          remark: lostRemark || null,
         }),
       });
       const data = await res.json();
@@ -339,7 +344,7 @@ export default function ReturnPage() {
                 <div>
                   <p className="font-medium text-destructive">确认服装丢失</p>
                   <p className="text-sm text-muted-foreground">
-                    丢失的服装将从总库存中扣除
+                    丢失的服装将计入丢失数量
                   </p>
                 </div>
               </div>
@@ -378,6 +383,24 @@ export default function ReturnPage() {
                 <p className="text-sm text-muted-foreground">
                   最多 {selectedRecord.quantity - (selectedRecord.returnedQuantity || 0)} {selectedRecord.clothingItem.unit}
                 </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lost-reason">丢失原因</Label>
+                <Input
+                  id="lost-reason"
+                  value={lostReason}
+                  onChange={(e) => setLostReason(e.target.value)}
+                  placeholder="如：穿着时遗失、损坏等"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lost-remark">备注</Label>
+                <Input
+                  id="lost-remark"
+                  value={lostRemark}
+                  onChange={(e) => setLostRemark(e.target.value)}
+                  placeholder="额外说明"
+                />
               </div>
             </div>
           )}

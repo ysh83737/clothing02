@@ -9,6 +9,7 @@ export async function GET() {
       _sum: {
         totalQuantity: true,
         availableQuantity: true,
+        lostQuantity: true,
       },
       _count: true,
     });
@@ -20,10 +21,10 @@ export async function GET() {
       _count: true,
     });
 
-    // 丢失数量
-    const lostStats = await prisma.loanRecord.aggregate({
-      where: { status: "lost" },
+    // 丢失数量 - 从 LostRecord 表获取
+    const lostStats = await prisma.lostRecord.aggregate({
       _sum: { quantity: true },
+      _count: true,
     });
 
     // 活动数量
@@ -75,9 +76,11 @@ export async function GET() {
         inventory: {
           totalQuantity: inventoryStats._sum.totalQuantity || 0,
           availableQuantity: inventoryStats._sum.availableQuantity || 0,
+          lostQuantity: inventoryStats._sum.lostQuantity || 0,
           borrowedQuantity:
             (inventoryStats._sum.totalQuantity || 0) -
-            (inventoryStats._sum.availableQuantity || 0),
+            (inventoryStats._sum.availableQuantity || 0) -
+            (inventoryStats._sum.lostQuantity || 0),
           categoryCount: inventoryStats._count,
         },
         loans: {

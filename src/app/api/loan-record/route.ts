@@ -208,7 +208,18 @@ export async function PUT(request: Request) {
       }
 
       await prisma.$transaction(async (tx) => {
-        // 更新记录状态：quantity 保持原始数量，更新 returnedQuantity 以标记已处理
+        // 1. 创建丢失记录
+        await tx.lostRecord.create({
+          data: {
+            loanRecordId: record.id,
+            employeeId: record.employeeId,
+            clothingItemId: record.clothingItemId,
+            quantity: lostQuantity,
+            lostAt: new Date(),
+          },
+        });
+
+        // 2. 更新借出记录状态
         await tx.loanRecord.update({
           where: { id },
           data: {
@@ -217,12 +228,11 @@ export async function PUT(request: Request) {
           },
         });
 
-        // 减少总库存（丢失的服装不再可用）
+        // 3. 更新库存：增加丢失数量
         await tx.clothingItem.update({
           where: { id: record.clothingItemId },
           data: {
-            totalQuantity: record.clothingItem.totalQuantity - lostQuantity,
-            availableQuantity: record.clothingItem.availableQuantity,
+            lostQuantity: record.clothingItem.lostQuantity + lostQuantity,
           },
         });
       });

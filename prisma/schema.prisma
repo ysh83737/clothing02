@@ -27,11 +27,13 @@ model ClothingItem {
   size               String?  // 尺码，如"S"、"M"、"L"、"XL"
   totalQuantity      Int      @default(0) // 总库存数量
   availableQuantity  Int      @default(0) // 可用数量（未被借出）
+  lostQuantity       Int      @default(0) // 已丢失数量
   unit               String   @default("件") // 单位
   createdAt          DateTime @default(now())
 
   category ClothingCategory @relation(fields: [categoryId], references: [id])
   loanRecords LoanRecord[]
+  lostRecords LostRecord[]
 }
 
 // 员工
@@ -43,6 +45,7 @@ model Employee {
   createdAt  DateTime @default(now())
 
   loanRecords LoanRecord[]
+  lostRecords LostRecord[]
 }
 
 // 出借活动
@@ -71,4 +74,21 @@ model LoanRecord {
   loanEvent  LoanEvent     @relation(fields: [loanEventId], references: [id])
   employee   Employee      @relation(fields: [employeeId], references: [id])
   clothingItem ClothingItem @relation(fields: [clothingItemId], references: [id])
+  lostRecords LostRecord[]
+}
+
+// 丢失记录
+model LostRecord {
+  id              String   @id @default(cuid())
+  loanRecordId    String   // 关联的借出记录
+  employeeId      String   // 丢失人（员工）
+  clothingItemId  String   // 服装
+  quantity        Int      // 丢失数量
+  lostAt          DateTime @default(now()) // 丢失时间
+  reason          String?  // 丢失原因
+  remark          String?  // 备注
+
+  loanRecord    LoanRecord   @relation(fields: [loanRecordId], references: [id])
+  employee      Employee     @relation(fields: [employeeId], references: [id])
+  clothingItem  ClothingItem @relation(fields: [clothingItemId], references: [id])
 }

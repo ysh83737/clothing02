@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Menu,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,11 @@ const navItems = [
     title: "归还销账",
     href: "/return",
     icon: ArrowLeftRight,
+  },
+  {
+    title: "丢失记录",
+    href: "/lost-record",
+    icon: AlertTriangle,
   },
 ];
 

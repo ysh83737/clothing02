@@ -46,6 +46,8 @@ interface InventoryItem {
   size: string | null;
   totalQuantity: number;
   availableQuantity: number;
+  lostQuantity: number;
+  borrowedQuantity: number;
   unit: string;
   category: {
     id: string;
@@ -332,26 +334,28 @@ export default function InventoryPage() {
               <TableHead>尺码</TableHead>
               <TableHead className="text-right">总库存</TableHead>
               <TableHead className="text-right">可用</TableHead>
-              <TableHead className="text-right">借出</TableHead>
+              <TableHead className="text-right">借出中</TableHead>
+              <TableHead className="text-right">丢失</TableHead>
               <TableHead className="text-center">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   加载中...
                 </TableCell>
               </TableRow>
             ) : filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   暂无数据
                 </TableCell>
               </TableRow>
             ) : (
               filteredItems.map((item) => {
-                const borrowed = item.totalQuantity - item.availableQuantity;
+                const lost = item.lostQuantity || 0;
+                const borrowed = item.borrowedQuantity || 0;
                 return (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
@@ -367,6 +371,9 @@ export default function InventoryPage() {
                     </TableCell>
                     <TableCell className="text-right text-orange-600">
                       {borrowed} {item.unit}
+                    </TableCell>
+                    <TableCell className="text-right text-destructive">
+                      {lost} {item.unit}
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex justify-center gap-2">

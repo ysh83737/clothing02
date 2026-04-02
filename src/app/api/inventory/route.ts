@@ -31,7 +31,13 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ success: true, data: items });
+    // 添加计算字段
+    const itemsWithStats = items.map((item) => ({
+      ...item,
+      borrowedQuantity: item.totalQuantity - item.availableQuantity - item.lostQuantity,
+    }));
+
+    return NextResponse.json({ success: true, data: itemsWithStats });
   } catch (error) {
     console.error("Error fetching inventory:", error);
     return NextResponse.json(
