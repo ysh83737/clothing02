@@ -84,7 +84,8 @@ export default function ReturnPage() {
 
   const openLostDialog = (record: LoanRecord) => {
     setSelectedRecord(record);
-    setReturnQuantity(record.quantity.toString());
+    const remainingQty = record.quantity - (record.returnedQuantity || 0);
+    setReturnQuantity(remainingQty.toString());
     setIsLostDialogOpen(true);
   };
 
@@ -125,7 +126,8 @@ export default function ReturnPage() {
     if (!selectedRecord) return;
 
     const qty = parseInt(returnQuantity);
-    if (qty < 1 || qty > selectedRecord.quantity) {
+    const pendingQuantity = selectedRecord.quantity - (selectedRecord.returnedQuantity || 0);
+    if (qty < 1 || qty > pendingQuantity) {
       toast.error("丢失数量无效");
       return;
     }
@@ -356,6 +358,12 @@ export default function ReturnPage() {
                     {selectedRecord.quantity} {selectedRecord.clothingItem.unit}
                   </span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">待处理数量:</span>
+                  <span>
+                    {selectedRecord.quantity - (selectedRecord.returnedQuantity || 0)} {selectedRecord.clothingItem.unit}
+                  </span>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lost-qty">丢失数量</Label>
@@ -368,7 +376,7 @@ export default function ReturnPage() {
                   onChange={(e) => setReturnQuantity(e.target.value)}
                 />
                 <p className="text-sm text-muted-foreground">
-                  最多 {selectedRecord.quantity} {selectedRecord.clothingItem.unit}
+                  最多 {selectedRecord.quantity - (selectedRecord.returnedQuantity || 0)} {selectedRecord.clothingItem.unit}
                 </p>
               </div>
             </div>
