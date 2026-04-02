@@ -37,14 +37,21 @@ export async function GET() {
         (sum, r) => sum + r.quantity,
         0
       );
-      const totalReturned = event.loanRecords
-        .filter((r) => r.status === "returned")
-        .reduce((sum, r) => sum + r.quantity, 0);
+
+      // 计算归还数量：包括所有已归还的数量（基于 returnedQuantity）
+      const totalReturned = event.loanRecords.reduce(
+        (sum, r) => sum + (r.returnedQuantity || 0),
+        0
+      );
+
+      // 计算丢失数量：只有标记为丢失的记录才计入丢失数量
       const totalLost = event.loanRecords
         .filter((r) => r.status === "lost")
-        .reduce((sum, r) => sum + (r.returnedQuantity || 0), 0);
+        .reduce((sum, r) => sum + (r.quantity - (r.returnedQuantity || 0)), 0);
+
+      // 计算未还数量：只计算仍有未处理数量的记录
       const totalActive = event.loanRecords
-        .filter((r) => r.status === "borrowed")
+        .filter((r) => r.status === "borrowed" && (r.returnedQuantity || 0) < r.quantity)
         .reduce((sum, r) => sum + r.quantity - (r.returnedQuantity || 0), 0);
 
       return {
