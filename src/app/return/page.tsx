@@ -63,7 +63,7 @@ export default function ReturnPage() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch("/api/loan-record?status=borrowed");
+      const res = await fetch("/api/loan-record");
       const data = await res.json();
       if (data.success) {
         setRecords(data.data);

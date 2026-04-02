@@ -12,7 +12,13 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {};
     if (eventId) where.loanEventId = eventId;
     if (employeeId) where.employeeId = employeeId;
-    if (status) where.status = status;
+
+    // 如果没有指定status参数，返回所有有未处理数量的记录（status为"borrowed"或"lost"但仍有未处理数量的记录）
+    if (!status) {
+      where.status = { in: ["borrowed", "lost"] };
+    } else {
+      where.status = status;
+    }
 
     const records = await prisma.loanRecord.findMany({
       where,
