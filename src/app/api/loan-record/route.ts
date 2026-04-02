@@ -47,6 +47,11 @@ export async function GET(request: Request) {
             },
           },
         },
+        lostRecords: {
+          select: {
+            quantity: true,
+          },
+        },
       },
       orderBy: { borrowedAt: "desc" },
     });

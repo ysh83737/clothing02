@@ -46,6 +46,9 @@ interface LoanRecord {
     id: string;
     name: string;
   };
+  lostRecords?: {
+    quantity: number;
+  }[];
 }
 
 export default function ReturnPage() {
@@ -77,17 +80,20 @@ export default function ReturnPage() {
     }
   };
 
+  const getPendingQuantity = (record: LoanRecord) => {
+    const lostQty = record.lostRecords?.reduce((sum, lr) => sum + lr.quantity, 0) || 0;
+    return record.quantity - (record.returnedQuantity || 0) - lostQty;
+  };
+
   const openReturnDialog = (record: LoanRecord) => {
     setSelectedRecord(record);
-    const remainingQty = record.quantity - (record.returnedQuantity || 0);
-    setReturnQuantity(remainingQty.toString());
+    setReturnQuantity(getPendingQuantity(record).toString());
     setIsReturnDialogOpen(true);
   };
 
   const openLostDialog = (record: LoanRecord) => {
     setSelectedRecord(record);
-    const remainingQty = record.quantity - (record.returnedQuantity || 0);
-    setReturnQuantity(remainingQty.toString());
+    setReturnQuantity(getPendingQuantity(record).toString());
     setLostReason("");
     setLostRemark("");
     setIsLostDialogOpen(true);
@@ -242,7 +248,7 @@ export default function ReturnPage() {
                     <Badge variant="secondary">{record.loanEvent.name}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {record.quantity - (record.returnedQuantity || 0)} {record.clothingItem.unit}
+                    {getPendingQuantity(record)} {record.clothingItem.unit}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {new Date(record.borrowedAt).toLocaleDateString("zh-CN")}
@@ -298,7 +304,7 @@ export default function ReturnPage() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">待归还:</span>
                   <span>
-                    {selectedRecord.quantity - (selectedRecord.returnedQuantity || 0)} {selectedRecord.clothingItem.unit}
+                    {getPendingQuantity(selectedRecord)} {selectedRecord.clothingItem.unit}
                   </span>
                 </div>
               </div>
@@ -308,12 +314,12 @@ export default function ReturnPage() {
                   id="return-qty"
                   type="number"
                   min="1"
-                  max={selectedRecord.quantity - (selectedRecord.returnedQuantity || 0)}
+                  max={getPendingQuantity(selectedRecord)}
                   value={returnQuantity}
                   onChange={(e) => setReturnQuantity(e.target.value)}
                 />
                 <p className="text-sm text-muted-foreground">
-                  最多可归还 {selectedRecord.quantity - (selectedRecord.returnedQuantity || 0)}{" "}
+                  最多可归还 {getPendingQuantity(selectedRecord)}{" "}
                   {selectedRecord.clothingItem.unit}
                 </p>
               </div>
@@ -366,7 +372,7 @@ export default function ReturnPage() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">待处理数量:</span>
                   <span>
-                    {selectedRecord.quantity - (selectedRecord.returnedQuantity || 0)} {selectedRecord.clothingItem.unit}
+                    {getPendingQuantity(selectedRecord)} {selectedRecord.clothingItem.unit}
                   </span>
                 </div>
               </div>
@@ -376,12 +382,12 @@ export default function ReturnPage() {
                   id="lost-qty"
                   type="number"
                   min="1"
-                  max={selectedRecord.quantity}
+                  max={getPendingQuantity(selectedRecord)}
                   value={returnQuantity}
                   onChange={(e) => setReturnQuantity(e.target.value)}
                 />
                 <p className="text-sm text-muted-foreground">
-                  最多 {selectedRecord.quantity - (selectedRecord.returnedQuantity || 0)} {selectedRecord.clothingItem.unit}
+                  最多 {getPendingQuantity(selectedRecord)} {selectedRecord.clothingItem.unit}
                 </p>
               </div>
               <div className="space-y-2">
