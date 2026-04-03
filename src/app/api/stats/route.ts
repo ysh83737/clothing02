@@ -52,23 +52,39 @@ export async function GET() {
       },
     });
 
-    // 最近归还记录
-    const recentReturns = await prisma.loanRecord.findMany({
-      where: { status: "returned" },
+    // 最近归还记录 - 从 ReturnRecord 表获取
+    const recentReturns = await prisma.returnRecord.findMany({
       take: 10,
       orderBy: { returnedAt: "desc" },
       include: {
         employee: {
-          select: { name: true },
+          select: { id: true, name: true },
         },
         clothingItem: {
-          select: { name: true },
+          select: { id: true, name: true },
         },
-        loanEvent: {
-          select: { name: true },
+        loanRecord: {
+          select: {
+            id: true,
+            quantity: true,
+            borrowedAt: true,
+            loanEvent: {
+              select: { id: true, name: true },
+            },
+          },
         },
       },
     });
+
+    // 转换数据格式以匹配前端期望
+    const formattedReturns = recentReturns.map((r) => ({
+      id: r.id,
+      quantity: r.quantity,
+      returnedAt: r.returnedAt,
+      employee: { name: r.employee.name },
+      clothingItem: { name: r.clothingItem.name },
+      loanEvent: { name: r.loanRecord.loanEvent.name },
+    }));
 
     return NextResponse.json({
       success: true,
@@ -95,7 +111,7 @@ export async function GET() {
           totalCount: employeeCount,
         },
         recentLoans,
-        recentReturns,
+        recentReturns: formattedReturns,
       },
     });
   } catch (error) {
