@@ -168,9 +168,10 @@ export default function ReturnPage() {
 
   const filteredRecords = records.filter(
     (r) =>
-      r.employee.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.clothingItem.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.loanEvent.name.toLowerCase().includes(search.toLowerCase())
+      getPendingQuantity(r) > 0 &&
+      (r.employee.name.toLowerCase().includes(search.toLowerCase()) ||
+        r.clothingItem.name.toLowerCase().includes(search.toLowerCase()) ||
+        r.loanEvent.name.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
