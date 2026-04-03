@@ -34,6 +34,7 @@ model ClothingItem {
   category ClothingCategory @relation(fields: [categoryId], references: [id])
   loanRecords LoanRecord[]
   lostRecords LostRecord[]
+  returnRecords ReturnRecord[]
 }
 
 // 员工
@@ -46,6 +47,7 @@ model Employee {
 
   loanRecords LoanRecord[]
   lostRecords LostRecord[]
+  returnRecords ReturnRecord[]
 }
 
 // 出借活动
@@ -75,6 +77,22 @@ model LoanRecord {
   employee   Employee      @relation(fields: [employeeId], references: [id])
   clothingItem ClothingItem @relation(fields: [clothingItemId], references: [id])
   lostRecords LostRecord[]
+  returnRecords ReturnRecord[]
+}
+
+// 归还记录
+model ReturnRecord {
+  id              String   @id @default(cuid())
+  loanRecordId    String   // 关联的借出记录
+  employeeId      String   // 归还人（员工）
+  clothingItemId  String   // 服装
+  quantity        Int      // 本次归还数量
+  returnedAt      DateTime @default(now()) // 归还时间
+  remark          String?  // 备注
+
+  loanRecord    LoanRecord   @relation(fields: [loanRecordId], references: [id])
+  employee      Employee     @relation(fields: [employeeId], references: [id])
+  clothingItem  ClothingItem @relation(fields: [clothingItemId], references: [id])
 }
 
 // 丢失记录

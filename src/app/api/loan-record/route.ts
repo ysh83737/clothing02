@@ -135,7 +135,7 @@ export async function POST(request: Request) {
   }
 }
 
-// PUT /api/loan-record - 更新借出记录（归还/丢失）
+// PUT /api/loan-record - 更新借出记录（仅处理丢失）
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
@@ -159,45 +159,6 @@ export async function PUT(request: Request) {
         { success: false, error: "记录不存在" },
         { status: 404 }
       );
-    }
-
-    // 处理归还
-    if (status === "returned") {
-      const returnQuantity = quantity || record.quantity;
-      const currentReturned = record.returnedQuantity || 0;
-
-      if (returnQuantity > record.quantity - currentReturned) {
-        return NextResponse.json(
-          { success: false, error: "归还数量不能超过待归还数量" },
-          { status: 400 }
-        );
-      }
-
-      const newReturnedQuantity = currentReturned + returnQuantity;
-      const isFullyReturned = newReturnedQuantity === record.quantity;
-
-      await prisma.$transaction(async (tx) => {
-        // 更新记录状态
-        await tx.loanRecord.update({
-          where: { id },
-          data: {
-            status: isFullyReturned ? "returned" : "borrowed",
-            returnedAt: isFullyReturned ? new Date() : null,
-            returnedQuantity: newReturnedQuantity,
-          },
-        });
-
-        // 恢复库存
-        await tx.clothingItem.update({
-          where: { id: record.clothingItemId },
-          data: {
-            availableQuantity:
-              record.clothingItem.availableQuantity + returnQuantity,
-          },
-        });
-      });
-
-      return NextResponse.json({ success: true, message: "归还成功" });
     }
 
     // 处理丢失

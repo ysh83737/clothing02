@@ -109,12 +109,11 @@ export default function ReturnPage() {
     }
 
     try {
-      const res = await fetch("/api/loan-record", {
-        method: "PUT",
+      const res = await fetch("/api/return-record", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: selectedRecord.id,
-          status: "returned",
+          loanRecordId: selectedRecord.id,
           quantity: qty,
         }),
       });
