@@ -31,12 +31,14 @@ clothing02/
     │   │   ├── loan/       # 活动管理
     │   │   ├── loan-record/# 借出记录
     │   │   ├── lost-record/# 丢失记录
+    │   │   ├── return-record/# 归还记录
     │   │   └── stats/      # 统计数据
     │   ├── employee/       # 员工管理页面
     │   ├── inventory/      # 库存管理页面
     │   ├── loan/           # 服装出借页面
     │   ├── lost-record/    # 丢失记录页面
-    │   ├── return/         # 归还页面
+    │   ├── return/         # 归还销账页面
+    │   ├── return-record/  # 归还记录页面
     │   ├── layout.tsx      # 根布局
     │   ├── page.tsx        # 首页/仪表盘
     │   └── globals.css     # 全局样式
@@ -86,6 +88,7 @@ clothing02/
 | `/` | 首页/仪表盘 |
 | `/inventory` | 库存管理 |
 | `/loan` | 服装出借 |
-| `/return` | 服装归还 |
+| `/return` | 归还销账 |
+| `/return-record` | 归还记录 |
 | `/lost-record` | 丢失记录 |
 | `/employee` | 员工管理 |

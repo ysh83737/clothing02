@@ -12,9 +12,13 @@ ClothingCategory (服装品类)
                       │              ├── N:1 ──→ LoanEvent (出借活动)
                       │              ├── N:1 ──→ Employee (员工)
                       │              │
-                      │              └── 1:N ──→ LostRecord (丢失记录)
+                      │              ├── 1:N ──→ LostRecord (丢失记录)
+                      │              │
+                      │              └── 1:N ──→ ReturnRecord (归还记录)
                       │
-                      └── 1:N ──→ LostRecord (丢失记录)
+                      ├── 1:N ──→ LostRecord (丢失记录)
+                      │
+                      └── 1:N ──→ ReturnRecord (归还记录)
 ```
 
 ## 数据模型
@@ -46,7 +50,7 @@ ClothingCategory (服装品类)
 | unit | String | 单位，默认"件" |
 | createdAt | DateTime | 创建时间 |
 
-关联：`ClothingItem N:1 ClothingCategory`、`ClothingItem 1:N LoanRecord`、`ClothingItem 1:N LostRecord`
+关联：`ClothingItem N:1 ClothingCategory`、`ClothingItem 1:N LoanRecord`、`ClothingItem 1:N LostRecord`、`ClothingItem 1:N ReturnRecord`
 
 ---
 
@@ -60,7 +64,7 @@ ClothingCategory (服装品类)
 | phone | String? | 电话（可选） |
 | createdAt | DateTime | 创建时间 |
 
-关联：`Employee 1:N LoanRecord`、`Employee 1:N LostRecord`
+关联：`Employee 1:N LoanRecord`、`Employee 1:N LostRecord`、`Employee 1:N ReturnRecord`
 
 ---
 
@@ -92,7 +96,7 @@ ClothingCategory (服装品类)
 | borrowedAt | DateTime | 借出时间 |
 | returnedAt | DateTime? | 归还时间（可选） |
 
-关联：`LoanRecord N:1 LoanEvent`、`LoanRecord N:1 Employee`、`LoanRecord N:1 ClothingItem`、`LoanRecord 1:N LostRecord`
+关联：`LoanRecord N:1 LoanEvent`、`LoanRecord N:1 Employee`、`LoanRecord N:1 ClothingItem`、`LoanRecord 1:N LostRecord`、`LoanRecord 1:N ReturnRecord`
 
 **状态流转**：
 - `borrowed` → `returned`（全部归还）
@@ -114,3 +118,19 @@ ClothingCategory (服装品类)
 | remark | String? | 备注（可选） |
 
 关联：`LostRecord N:1 LoanRecord`、`LostRecord N:1 Employee`、`LostRecord N:1 ClothingItem`
+
+---
+
+### ReturnRecord (归还记录)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | String (cuid) | 主键 |
+| loanRecordId | String | 关联的借出记录ID |
+| employeeId | String | 归还人（员工）ID |
+| clothingItemId | String | 服装ID |
+| quantity | Int | 本次归还数量 |
+| returnedAt | DateTime | 归还时间 |
+| remark | String? | 备注（可选） |
+
+关联：`ReturnRecord N:1 LoanRecord`、`ReturnRecord N:1 Employee`、`ReturnRecord N:1 ClothingItem`

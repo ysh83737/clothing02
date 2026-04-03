@@ -162,16 +162,7 @@
 
 会检查库存是否充足，并自动扣减可用库存。
 
-### PUT 更新借出记录（归还/丢失）
-
-请求体 - 归还：
-```json
-{
-  "id": "xxx",
-  "status": "returned",
-  "quantity": 3
-}
-```
+### PUT 更新借出记录（仅丢失）
 
 请求体 - 登记丢失：
 ```json
@@ -182,7 +173,7 @@
 }
 ```
 
-归还时自动恢复库存，丢失时自动创建丢失记录并更新丢失数量。
+**注意**：归还功能已移至 `/api/return-record` 接口。
 
 ---
 
@@ -224,6 +215,33 @@
 - `employees` - 员工统计（员工总数）
 - `recentLoans` - 最近10条借出记录
 - `recentReturns` - 最近10条归还记录
+
+---
+
+## 归还记录 `/api/return-record`
+
+### GET 获取归还记录
+
+查询参数：
+- `eventId` - 按活动筛选
+- `employeeId` - 按员工筛选
+
+### POST 创建归还记录（处理归还逻辑）
+
+请求体：
+```json
+{
+  "loanRecordId": "xxx",
+  "quantity": 3,
+  "remark": "已清洗归还"
+}
+```
+
+功能：
+- 验证归还数量不超过待归还数量
+- 更新 LoanRecord 的 returnedQuantity 和 status
+- 恢复库存 availableQuantity
+- 创建 ReturnRecord 记录
 
 ---
 
