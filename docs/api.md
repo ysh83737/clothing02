@@ -218,6 +218,27 @@
 
 ---
 
+## 归还销账统计 `/api/stats/return-stats`
+
+### GET 获取归还销账统计数据
+
+返回待归还和丢失的汇总统计：
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalPendingReturn": 15,
+    "totalLost": 3
+  }
+}
+```
+
+- `totalPendingReturn` - 待归还总数（所有 LoanRecord 中 `quantity - returnedQuantity - lostQuantity > 0` 的总和）
+- `totalLost` - 丢失总数（所有 LostRecord 的 quantity 总和）
+
+---
+
 ## 归还记录 `/api/return-record`
 
 ### GET 获取归还记录

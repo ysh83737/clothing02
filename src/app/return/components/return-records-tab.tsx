@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Search, ArrowRightLeft, Calendar, User, Package } from "lucide-react";
+import { useState } from "react";
+import { ArrowRightLeft, Calendar, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -18,16 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/layout/header";
-import { toast } from "sonner";
+import { SearchToolbar } from "./search-toolbar";
 
 interface ReturnRecord {
   id: string;
@@ -63,46 +54,24 @@ interface Employee {
   name: string;
 }
 
-export default function ReturnRecordPage() {
-  const [records, setRecords] = useState<ReturnRecord[]>([]);
-  const [events, setEvents] = useState<LoanEvent[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+interface ReturnRecordsTabProps {
+  records: ReturnRecord[];
+  loading: boolean;
+  events: LoanEvent[];
+  employees: Employee[];
+}
+
+export function ReturnRecordsTab({
+  records,
+  loading,
+  events,
+  employees,
+}: ReturnRecordsTabProps) {
   const [search, setSearch] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<string>("all");
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [selectedRecord, setSelectedRecord] = useState<ReturnRecord | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const [returnRes, eventRes, employeeRes] = await Promise.all([
-        fetch("/api/return-record"),
-        fetch("/api/loan"),
-        fetch("/api/employee"),
-      ]);
-      const returnData = await returnRes.json();
-      const eventData = await eventRes.json();
-      const employeeData = await employeeRes.json();
-
-      if (returnData.success) setRecords(returnData.data);
-      if (eventData.success) setEvents(eventData.data);
-      if (employeeData.success) setEmployees(employeeData.data);
-    } catch {
-      toast.error("获取数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openDetailDialog = (record: ReturnRecord) => {
-    setSelectedRecord(record);
-    setIsDetailDialogOpen(true);
-  };
 
   const filteredRecords = records.filter((record) => {
     const matchesSearch =
@@ -120,85 +89,27 @@ export default function ReturnRecordPage() {
     return matchesSearch && matchesEvent && matchesEmployee;
   });
 
-  // 计算统计数据
-  const stats = {
-    totalReturned: records.reduce((sum, r) => sum + r.quantity, 0),
-    totalRecords: records.length,
+  const openDetailDialog = (record: ReturnRecord) => {
+    setSelectedRecord(record);
+    setIsDetailDialogOpen(true);
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="归还记录"
-        description="查看所有服装归还记录"
+    <div className="space-y-4">
+      <SearchToolbar
+        search={search}
+        onSearchChange={setSearch}
+        placeholder="搜索员工、服装或活动..."
+        showEventFilter
+        showEmployeeFilter
+        events={events}
+        employees={employees}
+        selectedEvent={selectedEvent}
+        selectedEmployee={selectedEmployee}
+        onEventChange={setSelectedEvent}
+        onEmployeeChange={setSelectedEmployee}
       />
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="border rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <ArrowRightLeft className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">归还总数</p>
-              <p className="text-2xl font-bold">{stats.totalReturned}</p>
-            </div>
-          </div>
-        </div>
-        <div className="border rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-secondary rounded-lg">
-              <Package className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">归还记录数</p>
-              <p className="text-2xl font-bold">{stats.totalRecords}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="搜索员工、服装或活动..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={selectedEvent} onValueChange={(v) => setSelectedEvent(v || "all")}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="筛选活动" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">所有活动</SelectItem>
-            {events.map((event) => (
-              <SelectItem key={event.id} value={event.id}>
-                {event.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={selectedEmployee} onValueChange={(v) => setSelectedEmployee(v || "all")}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="筛选员工" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">所有员工</SelectItem>
-            {employees.map((emp) => (
-              <SelectItem key={emp.id} value={emp.id}>
-                {emp.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
@@ -304,15 +215,21 @@ export default function ReturnRecordPage() {
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-muted-foreground">原借出数量</span>
-                  <span>{selectedRecord.loanRecord.quantity} {selectedRecord.clothingItem.unit}</span>
+                  <span>
+                    {selectedRecord.loanRecord.quantity} {selectedRecord.clothingItem.unit}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-muted-foreground">借出时间</span>
-                  <span>{new Date(selectedRecord.loanRecord.borrowedAt).toLocaleDateString("zh-CN")}</span>
+                  <span>
+                    {new Date(selectedRecord.loanRecord.borrowedAt).toLocaleDateString("zh-CN")}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-muted-foreground">归还时间</span>
-                  <span>{new Date(selectedRecord.returnedAt).toLocaleDateString("zh-CN")}</span>
+                  <span>
+                    {new Date(selectedRecord.returnedAt).toLocaleDateString("zh-CN")}
+                  </span>
                 </div>
                 {selectedRecord.remark && (
                   <div className="py-2">
