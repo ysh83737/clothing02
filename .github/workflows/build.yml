@@ -1,0 +1,44 @@
+# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
+# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+
+name: build
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: pnpm hoisted 模式
+        run: echo "node-linker=hoisted" > .npmrc
+
+      - run: pnpm install
+      - name: 初始化数据库
+        run: pnpm db:init
+
+      - name: 开始构建
+        run: pnpm build
+
+      - name: 复制产物
+        run: cp -r .next/standalone dist && cp -r .next/static dist/.next && cp -r public dist
+
+      - name: 打包产物
+        run: tar -cvf dist.tar.gz dist
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          # 要上传的文件或文件夹路径 (必填)
+          path: dist.tar.gz
+          # 保留天数 (可选，范围1-90天，默认值取决于仓库类型)
+          retention-days: 7

@@ -11,7 +11,7 @@ clothing02/
 ├── pnpm-workspace.yaml
 ├── postcss.config.mjs
 ├── tsconfig.json           # TypeScript 配置
-├── dev.db                  # SQLite 数据库文件
+├── data.db                  # SQLite 数据库文件
 ├── prisma/                 # Prisma ORM
 │   ├── schema.prisma       # 数据模型定义
 │   ├── seed.ts             # 种子数据
