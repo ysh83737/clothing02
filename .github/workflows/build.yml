@@ -8,18 +8,19 @@ jobs:
   build:
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
 
       - name: pnpm hoisted 模式
         run: echo "node-linker=hoisted" > .npmrc
 
-      - run: pnpm install
+      - name: 安装依赖
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: true
+
       - name: 初始化数据库
         run: pnpm db:init
 
@@ -33,7 +34,7 @@ jobs:
         run: tar -cvf dist.tar.gz dist
 
       - name: 上传产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           # 要上传的文件或文件夹路径 (必填)
           path: dist.tar.gz
