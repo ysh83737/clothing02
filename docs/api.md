@@ -145,9 +145,9 @@
 
 不传 status 时默认返回未还清的记录。
 
-### POST 创建借出记录
+### POST 创建借出记录（支持单品和批量）
 
-请求体：
+单品借出（向后兼容）：
 ```json
 {
   "loanEventId": "xxx",
@@ -157,7 +157,19 @@
 }
 ```
 
-会检查库存是否充足，并自动扣减可用库存。
+批量借出（一个员工一次性借多件）：
+```json
+{
+  "loanEventId": "xxx",
+  "employeeId": "xxx",
+  "items": [
+    { "clothingItemId": "xxx", "quantity": 2 },
+    { "clothingItemId": "yyy", "quantity": 1 }
+  ]
+}
+```
+
+会检查每件服装库存是否充足，并在一个数据库事务中自动扣减库存。items 中不能包含重复的服装。
 
 ### PUT 更新借出记录（仅丢失）
 

@@ -82,10 +82,17 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/loan-record - 创建借出记录
+// POST /api/loan-record - 创建借出记录（支持单个或批量）
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+
+    // 检测是否为批量格式
+    if (body.items && Array.isArray(body.items)) {
+      return handleBatchLoan(body);
+    }
+
+    // === 旧格式：单品借出（向后兼容） ===
     const { loanEventId, employeeId, clothingItemId, quantity } = body;
 
     if (!loanEventId || !employeeId || !clothingItemId || !quantity) {
@@ -119,7 +126,6 @@ export async function POST(request: Request) {
 
     // 创建借出记录并更新库存
     const record = await prisma.$transaction(async (tx) => {
-      // 创建借出记录
       const newRecord = await tx.loanRecord.create({
         data: {
           loanEventId,
@@ -130,7 +136,6 @@ export async function POST(request: Request) {
         },
       });
 
-      // 更新库存可用数量
       await tx.clothingItem.update({
         where: { id: clothingItemId },
         data: {
@@ -149,6 +154,107 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+// 处理批量借出
+async function handleBatchLoan(body: Record<string, unknown>) {
+  const { loanEventId, employeeId, items } = body as {
+    loanEventId?: string;
+    employeeId?: string;
+    items?: Array<{ clothingItemId: string; quantity: number }>;
+  };
+
+  if (!loanEventId || !employeeId) {
+    return NextResponse.json(
+      { success: false, error: "活动、员工不能为空" },
+      { status: 400 }
+    );
+  }
+
+  if (!items || items.length === 0) {
+    return NextResponse.json(
+      { success: false, error: "请至少选择一件服装" },
+      { status: 400 }
+    );
+  }
+
+  // 校验每项数据
+  for (const [idx, item] of items.entries()) {
+    if (!item.clothingItemId) {
+      return NextResponse.json(
+        { success: false, error: `第 ${idx + 1} 行服装不能为空` },
+        { status: 400 }
+      );
+    }
+    const qty = Number(item.quantity);
+    if (!Number.isInteger(qty) || qty < 1) {
+      return NextResponse.json(
+        { success: false, error: `第 ${idx + 1} 行数量必须为正整数` },
+        { status: 400 }
+      );
+    }
+  }
+
+  // 检查重复服装
+  const ids = items.map((i) => i.clothingItemId);
+  if (new Set(ids).size !== ids.length) {
+    return NextResponse.json(
+      { success: false, error: "同一批借出中不能包含重复服装" },
+      { status: 400 }
+    );
+  }
+
+  // 逐一查询服装，校验库存
+  const clothingItems = await Promise.all(
+    ids.map((id) => prisma.clothingItem.findUnique({ where: { id } }))
+  );
+
+  for (const [idx, item] of items.entries()) {
+    const dbItem = clothingItems[idx];
+    if (!dbItem) {
+      return NextResponse.json(
+        { success: false, error: `服装 ID ${item.clothingItemId} 不存在` },
+        { status: 404 }
+      );
+    }
+    if (dbItem.availableQuantity < item.quantity) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `${dbItem.name} 库存不足，当前可借数量为 ${dbItem.availableQuantity}`,
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  // 批量创建借出记录并扣减库存
+  const records = await prisma.$transaction(async (tx) => {
+    const created = [];
+    for (const item of items) {
+      const newRecord = await tx.loanRecord.create({
+        data: {
+          loanEventId,
+          employeeId,
+          clothingItemId: item.clothingItemId,
+          quantity: item.quantity,
+          status: "borrowed",
+        },
+      });
+
+      await tx.clothingItem.update({
+        where: { id: item.clothingItemId },
+        data: {
+          availableQuantity: { decrement: item.quantity },
+        },
+      });
+
+      created.push(newRecord);
+    }
+    return created;
+  });
+
+  return NextResponse.json({ success: true, data: records });
 }
 
 // PUT /api/loan-record - 更新借出记录（仅处理丢失）

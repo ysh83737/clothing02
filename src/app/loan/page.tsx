@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, CheckCircle } from "lucide-react";
+import { Plus, Search, Package, CheckCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -106,11 +106,36 @@ export default function LoanPage() {
     name: "",
     description: "",
   });
-  const [loanData, setLoanData] = useState({
-    employeeId: "",
-    clothingItemId: "",
-    quantity: "1",
-  });
+  const [loanEmployeeId, setLoanEmployeeId] = useState("");
+  const [loanItems, setLoanItems] = useState<
+    Array<{ key: string; clothingItemId: string; quantity: string }>
+  >([{ key: crypto.randomUUID(), clothingItemId: "", quantity: "1" }]);
+
+  // 对话框打开时重置表单
+  useEffect(() => {
+    if (isLoanDialogOpen) {
+      setLoanEmployeeId("");
+      setLoanItems([{ key: crypto.randomUUID(), clothingItemId: "", quantity: "1" }]);
+    }
+  }, [isLoanDialogOpen]);
+
+  const addLoanItem = () => {
+    setLoanItems([
+      ...loanItems,
+      { key: crypto.randomUUID(), clothingItemId: "", quantity: "1" },
+    ]);
+  };
+
+  const removeLoanItem = (key: string) => {
+    if (loanItems.length <= 1) return;
+    setLoanItems(loanItems.filter((item) => item.key !== key));
+  };
+
+  const updateLoanItem = (key: string, field: "clothingItemId" | "quantity", value: string) => {
+    setLoanItems(
+      loanItems.map((item) => (item.key === key ? { ...item, [field]: value } : item))
+    );
+  };
 
   const handleCreateEvent = async () => {
     if (!formData.name) {
@@ -140,14 +165,24 @@ export default function LoanPage() {
   };
 
   const handleLoan = async () => {
-    if (!loanData.employeeId || !loanData.clothingItemId || !loanData.quantity) {
-      toast.error("请填写完整信息");
+    if (!loanEmployeeId) {
+      toast.error("请选择员工");
       return;
     }
 
-    const qty = parseInt(loanData.quantity);
-    if (qty < 1) {
-      toast.error("数量必须大于0");
+    const validItems = loanItems.filter(
+      (item) => item.clothingItemId && parseInt(item.quantity) > 0
+    );
+
+    if (validItems.length === 0) {
+      toast.error("请至少选择一件服装并填写数量");
+      return;
+    }
+
+    // 检查重复服装
+    const clothingIds = validItems.map((item) => item.clothingItemId);
+    if (new Set(clothingIds).size !== clothingIds.length) {
+      toast.error("同一批借出中不能包含重复服装");
       return;
     }
 
@@ -157,15 +192,19 @@ export default function LoanPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           loanEventId: selectedEventId,
-          ...loanData,
-          quantity: qty,
+          employeeId: loanEmployeeId,
+          items: validItems.map((item) => ({
+            clothingItemId: item.clothingItemId,
+            quantity: parseInt(item.quantity),
+          })),
         }),
       });
       const data = await res.json();
       if (data.success) {
         toast.success("借出成功");
         setIsLoanDialogOpen(false);
-        setLoanData({ employeeId: "", clothingItemId: "", quantity: "1" });
+        setLoanEmployeeId("");
+        setLoanItems([{ key: crypto.randomUUID(), clothingItemId: "", quantity: "1" }]);
         activeEvents.refresh();
         closedEvents.refresh();
         loanRecords.refresh();
@@ -507,7 +546,7 @@ export default function LoanPage() {
 
       {/* Loan Dialog */}
       <Dialog open={isLoanDialogOpen} onOpenChange={setIsLoanDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>发起借出</DialogTitle>
           </DialogHeader>
@@ -515,11 +554,9 @@ export default function LoanPage() {
             <div className="space-y-2">
               <Label>选择员工 *</Label>
               <Select
-                value={loanData.employeeId}
+                value={loanEmployeeId}
                 items={selectEmployees}
-                onValueChange={(v) =>
-                  setLoanData({ ...loanData, employeeId: v || "" })
-                }
+                onValueChange={(v) => setLoanEmployeeId(v || "")}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="选择员工" />
@@ -533,40 +570,79 @@ export default function LoanPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+
+            <div className="space-y-3">
               <Label>选择服装 *</Label>
-              <Select
-                value={loanData.clothingItemId}
-                items={selectInventory}
-                onValueChange={(v) =>
-                  setLoanData({ ...loanData, clothingItemId: v || "" })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择服装" />
-                </SelectTrigger>
-                <SelectContent>
-                  {inventory.data.filter((i) => i.availableQuantity > 0).map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.name} (可借: {item.availableQuantity}
-                      {item.unit})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {loanItems.map((item, index) => (
+                <div key={item.key} className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <Select
+                      value={item.clothingItemId}
+                      items={selectInventory}
+                      onValueChange={(v) =>
+                        updateLoanItem(item.key, "clothingItemId", v || "")
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="选择服装" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {inventory.data
+                          .filter(
+                            (i) =>
+                              i.availableQuantity > 0 &&
+                              (i.id === item.clothingItemId ||
+                                !loanItems.some(
+                                  (li) =>
+                                    li.key !== item.key &&
+                                    li.clothingItemId === i.id
+                                ))
+                          )
+                          .map((inv) => (
+                            <SelectItem key={inv.id} value={inv.id}>
+                              {inv.name} (可借: {inv.availableQuantity}
+                              {inv.unit})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-24">
+                    <Input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) =>
+                        updateLoanItem(item.key, "quantity", e.target.value)
+                      }
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={loanItems.length <= 1}
+                    onClick={() => removeLoanItem(item.key)}
+                    className="shrink-0"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="loan-qty">借出数量 *</Label>
-              <Input
-                id="loan-qty"
-                type="number"
-                min="1"
-                value={loanData.quantity}
-                onChange={(e) =>
-                  setLoanData({ ...loanData, quantity: e.target.value })
-                }
-              />
-            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addLoanItem}
+              disabled={
+                availInventory.length <=
+                loanItems.filter((i) => i.clothingItemId).length
+              }
+              className="w-full"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              添加服装
+            </Button>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsLoanDialogOpen(false)}>
