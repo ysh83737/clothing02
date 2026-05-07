@@ -38,6 +38,13 @@ clothing02/
     │   ├── inventory/      # 库存管理页面
     │   ├── loan/           # 服装出借页面
     │   ├── return/         # 归还销账页面（三标签页）
+    │   │   └── components/ # 归还销账子组件
+    │   │       ├── index.ts
+    │   │       ├── return-stats-cards.tsx
+    │   │       ├── search-toolbar.tsx
+    │   │       ├── pending-return-tab.tsx
+    │   │       ├── return-records-tab.tsx
+    │   │       └── lost-records-tab.tsx
     │   ├── layout.tsx      # 根布局
     │   ├── page.tsx        # 首页/仪表盘
     │   └── globals.css     # 全局样式
@@ -45,13 +52,6 @@ clothing02/
     │   ├── layout/         # 布局组件
     │   │   ├── header.tsx  # 顶部导航
     │   │   └── sidebar.tsx # 侧边栏
-    │   ├── return/         # 归还销账模块组件
-    │   │   ├── index.ts
-    │   │   ├── return-stats-cards.tsx  # 统计卡片
-    │   │   ├── search-toolbar.tsx      # 搜索工具栏
-    │   │   ├── pending-return-tab.tsx   # 待归还标签
-    │   │   ├── return-records-tab.tsx   # 归还记录标签
-    │   │   └── lost-records-tab.tsx     # 丢失记录标签
     │   └── ui/             # shadcn/ui 组件
     │       ├── avatar.tsx
     │       ├── badge.tsx
@@ -61,6 +61,7 @@ clothing02/
     │       ├── dropdown-menu.tsx
     │       ├── input.tsx
     │       ├── label.tsx
+    │       ├── pagination.tsx  # 分页组件
     │       ├── select.tsx
     │       ├── separator.tsx
     │       ├── skeleton.tsx
@@ -68,10 +69,13 @@ clothing02/
     │       ├── table.tsx
     │       ├── tabs.tsx
     │       └── textarea.tsx
+    ├── hooks/              # React Hooks
+    │   └── use-paginated-fetch.ts  # 通用分页数据获取 Hook
     ├── generated/          # 生成的代码
     │   └── prisma/         # Prisma 生成的客户端
     └── lib/
         ├── prisma.ts       # Prisma 客户端实例
+        ├── api-helpers.ts  # API 分页辅助函数
         └── utils.ts        # 工具函数
 ```
 
@@ -82,9 +86,10 @@ clothing02/
 | `prisma/` | 数据库模型定义和迁移 |
 | `src/app/api/` | 后端 API 接口实现 |
 | `src/app/[page]/` | 前端页面组件 |
-| `src/components/return/` | 归还销账模块可复用组件 |
+| `src/app/return/components/` | 归还销账模块子组件 |
 | `src/components/ui/` | UI 组件库（shadcn/ui） |
 | `src/components/layout/` | 布局组件 |
+| `src/hooks/` | 自定义 React Hooks |
 | `src/lib/` | 工具函数和数据库客户端 |
 | `docs/` | 项目文档 |
 
@@ -93,39 +98,27 @@ clothing02/
 | 路径 | 页面 | 说明 |
 |------|------|------|
 | `/` | 首页/仪表盘 | |
-| `/inventory` | 库存管理 | |
-| `/loan` | 服装出借 | |
-| `/return` | 归还销账 | **三标签页**：待归还、归还记录、丢失记录 |
-| `/employee` | 员工管理 | |
+| `/inventory` | 库存管理 | 支持分页、搜索和品类筛选 |
+| `/employee` | 员工管理 | 支持分页和搜索 |
+| `/loan` | 服装出借 | 支持分页（活动卡片/表格/借出记录各自分页） |
+| `/return` | 归还销账 | **三标签页**：待归还、归还记录、丢失记录（各自独立分页） |
 
 ## 归还销账模块（/return）
-
-该模块是本次重构的核心，将原来分散的三个页面合并为一个三标签页：
 
 ```
 归还销账
 ├── 统计卡片（待归还总数 + 丢失总数）
 ├── 标签1 - 待归还：
 │   ├── 搜索框
-│   ├── 数据表格：员工 | 服装 | 活动 | 待归还数量 | 借出时间 | 操作（归还/丢失）
+│   ├── 数据表格（分页）：员工 | 服装 | 活动 | 待归还数量 | 借出时间 | 操作（归还/丢失）
 │   ├── 归还弹窗
 │   └── 丢失弹窗
 ├── 标签2 - 归还记录：
-│   ├── 搜索框
-│   ├── 数据表格：员工 | 服装 | 活动 | 归还数量 | 归还时间 | 操作（详情）
+│   ├── 搜索 + 筛选工具栏（活动/员工）
+│   ├── 数据表格（分页）：员工 | 服装 | 活动 | 归还数量 | 归还时间 | 操作（详情）
 │   └── 详情弹窗
 └── 标签3 - 丢失记录：
-    ├── 搜索框
-    ├── 数据表格：员工 | 服装 | 活动 | 丢失数量 | 丢失时间 | 操作（详情）
+    ├── 搜索 + 筛选工具栏（活动/员工）
+    ├── 数据表格（分页）：员工 | 服装 | 活动 | 丢失数量 | 丢失时间 | 操作（详情）
     └── 详情弹窗
 ```
-
-### 组件清单
-
-| 组件 | 路径 | 说明 |
-|------|------|------|
-| `ReturnStatsCards` | `components/return/return-stats-cards.tsx` | 统计卡片组件 |
-| `SearchToolbar` | `components/return/search-toolbar.tsx` | 搜索工具栏（支持活动/员工筛选） |
-| `PendingReturnTab` | `components/return/pending-return-tab.tsx` | 待归还标签页 |
-| `ReturnRecordsTab` | `components/return/return-records-tab.tsx` | 归还记录标签页 |
-| `LostRecordsTab` | `components/return/lost-records-tab.tsx` | 丢失记录标签页 |

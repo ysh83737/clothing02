@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Pencil, Trash2, Phone, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/header";
+import { Pagination } from "@/components/ui/pagination";
+import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { toast } from "sonner";
 
 interface Employee {
@@ -34,9 +36,8 @@ interface Employee {
 }
 
 export default function EmployeePage() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const employees = usePaginatedFetch<Employee>("/api/employee");
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -45,24 +46,6 @@ export default function EmployeePage() {
     department: "",
     phone: "",
   });
-
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
-
-  const fetchEmployees = async () => {
-    try {
-      const res = await fetch("/api/employee");
-      const data = await res.json();
-      if (data.success) {
-        setEmployees(data.data);
-      }
-    } catch {
-      toast.error("获取员工数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAdd = async () => {
     if (!formData.name) {
@@ -81,7 +64,7 @@ export default function EmployeePage() {
         toast.success("添加成功");
         setIsAddDialogOpen(false);
         resetForm();
-        fetchEmployees();
+        employees.refresh();
       } else {
         toast.error(data.error);
       }
@@ -104,7 +87,7 @@ export default function EmployeePage() {
         toast.success("更新成功");
         setIsEditDialogOpen(false);
         setEditingEmployee(null);
-        fetchEmployees();
+        employees.refresh();
       } else {
         toast.error(data.error);
       }
@@ -123,7 +106,7 @@ export default function EmployeePage() {
       const data = await res.json();
       if (data.success) {
         toast.success("删除成功");
-        fetchEmployees();
+        employees.refresh();
       } else {
         toast.error(data.error);
       }
@@ -141,12 +124,6 @@ export default function EmployeePage() {
     setIsEditDialogOpen(true);
   };
 
-  const filteredEmployees = employees.filter(
-    (emp) =>
-      emp.name.toLowerCase().includes(search.toLowerCase()) ||
-      emp.department?.toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -158,8 +135,8 @@ export default function EmployeePage() {
       <div className="flex flex-col sm:flex-row gap-4">
         <Input
           placeholder="搜索员工姓名或部门..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={employees.search}
+          onChange={(e) => employees.setSearch(e.target.value)}
           className="max-w-xs"
         />
         <Button
@@ -187,20 +164,20 @@ export default function EmployeePage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {employees.loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8">
                   加载中...
                 </TableCell>
               </TableRow>
-            ) : filteredEmployees.length === 0 ? (
+            ) : employees.data.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8">
                   暂无员工
                 </TableCell>
               </TableRow>
             ) : (
-              filteredEmployees.map((employee) => (
+              employees.data.map((employee) => (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>
@@ -257,6 +234,16 @@ export default function EmployeePage() {
           </TableBody>
         </Table>
       </div>
+
+      <Pagination
+        page={employees.page}
+        totalPages={employees.totalPages}
+        total={employees.total}
+        pageSize={employees.pageSize}
+        onPageChange={employees.setPage}
+        onPageSizeChange={employees.setPageSize}
+        loading={employees.loading}
+      />
 
       {/* Add Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

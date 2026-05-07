@@ -1,15 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
 
 // GET /api/lost-record - 获取丢失记录列表
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const { page, pageSize } = getPaginationParams(searchParams);
     const eventId = searchParams.get("eventId");
     const employeeId = searchParams.get("employeeId");
     const clothingItemId = searchParams.get("clothingItemId");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const search = searchParams.get("search");
 
     const where: Record<string, unknown> = {};
 
@@ -39,45 +42,58 @@ export async function GET(request: Request) {
       }
     }
 
-    const records = await prisma.lostRecord.findMany({
-      where,
-      include: {
-        loanRecord: {
-          select: {
-            id: true,
-            quantity: true,
-            returnedQuantity: true,
-            borrowedAt: true,
-            loanEvent: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-        employee: {
-          select: {
-            id: true,
-            name: true,
-            department: true,
-          },
-        },
-        clothingItem: {
-          include: {
-            category: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { lostAt: "desc" },
-    });
+    if (search) {
+      where.OR = [
+        { employee: { name: { contains: search } } },
+        { clothingItem: { name: { contains: search } } },
+        { loanRecord: { loanEvent: { name: { contains: search } } } },
+      ];
+    }
 
-    return NextResponse.json({ success: true, data: records });
+    const [records, total] = await Promise.all([
+      prisma.lostRecord.findMany({
+        where,
+        include: {
+          loanRecord: {
+            select: {
+              id: true,
+              quantity: true,
+              returnedQuantity: true,
+              borrowedAt: true,
+              loanEvent: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              department: true,
+            },
+          },
+          clothingItem: {
+            include: {
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { lostAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.lostRecord.count({ where }),
+    ]);
+
+    return NextResponse.json(paginatedResponse(records, total, { page, pageSize }));
   } catch (error) {
     console.error("Error fetching lost records:", error);
     return NextResponse.json(

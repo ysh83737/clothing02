@@ -1,12 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
 
 // GET /api/return-record - 获取所有归还记录
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const { page, pageSize } = getPaginationParams(searchParams);
     const eventId = searchParams.get("eventId");
     const employeeId = searchParams.get("employeeId");
+    const search = searchParams.get("search");
 
     const where: Record<string, unknown> = {};
     if (eventId) {
@@ -15,45 +18,57 @@ export async function GET(request: Request) {
     if (employeeId) {
       where.employeeId = employeeId;
     }
+    if (search) {
+      where.OR = [
+        { employee: { name: { contains: search } } },
+        { clothingItem: { name: { contains: search } } },
+        { loanRecord: { loanEvent: { name: { contains: search } } } },
+      ];
+    }
 
-    const records = await prisma.returnRecord.findMany({
-      where,
-      include: {
-        loanRecord: {
-          select: {
-            id: true,
-            quantity: true,
-            borrowedAt: true,
-            loanEvent: {
-              select: {
-                id: true,
-                name: true,
+    const [records, total] = await Promise.all([
+      prisma.returnRecord.findMany({
+        where,
+        include: {
+          loanRecord: {
+            select: {
+              id: true,
+              quantity: true,
+              borrowedAt: true,
+              loanEvent: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              department: true,
+            },
+          },
+          clothingItem: {
+            include: {
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
           },
         },
-        employee: {
-          select: {
-            id: true,
-            name: true,
-            department: true,
-          },
-        },
-        clothingItem: {
-          include: {
-            category: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { returnedAt: "desc" },
-    });
+        orderBy: { returnedAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.returnRecord.count({ where }),
+    ]);
 
-    return NextResponse.json({ success: true, data: records });
+    return NextResponse.json(paginatedResponse(records, total, { page, pageSize }));
   } catch (error) {
     console.error("Error fetching return records:", error);
     return NextResponse.json(

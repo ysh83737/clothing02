@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Search, Package, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/layout/header";
+import { Pagination } from "@/components/ui/pagination";
+import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { toast } from "sonner";
 
 interface Employee {
@@ -76,14 +78,27 @@ interface LoanRecord {
 }
 
 export default function LoanPage() {
-  const [events, setEvents] = useState<LoanEvent[]>([]);
-  const [records, setRecords] = useState<LoanRecord[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [selectEmployees, setSelectEmployees] = useState<{value: string; label: string}[]>([]);
-  const [selectInventory, setSelectInventory] = useState<{value: string; label: string}[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [pageSearch, setPageSearch] = useState("");
+  const [debouncedPageSearch, setDebouncedPageSearch] = useState("");
+
+  // 搜索防抖
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedPageSearch(pageSearch), 300);
+    return () => clearTimeout(timer);
+  }, [pageSearch]);
+
+  const activeEvents = usePaginatedFetch<LoanEvent>("/api/loan", {
+    defaultPageSize: 12,
+    extraParams: { status: "active", search: debouncedPageSearch },
+  });
+  const closedEvents = usePaginatedFetch<LoanEvent>("/api/loan", {
+    defaultPageSize: 10,
+    extraParams: { status: "closed", search: debouncedPageSearch },
+  });
+  const loanRecords = usePaginatedFetch<LoanRecord>("/api/loan-record");
+  const employees = usePaginatedFetch<Employee>("/api/employee", { defaultPageSize: 200 });
+  const inventory = usePaginatedFetch<InventoryItem>("/api/inventory", { defaultPageSize: 200 });
+
   const [isAddEventDialogOpen, setIsAddEventDialogOpen] = useState(false);
   const [isLoanDialogOpen, setIsLoanDialogOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string>("");
@@ -96,47 +111,6 @@ export default function LoanPage() {
     clothingItemId: "",
     quantity: "1",
   });
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const [eventRes, recordRes, employeeRes, inventoryRes] = await Promise.all([
-        fetch("/api/loan"),
-        fetch("/api/loan-record"),
-        fetch("/api/employee"),
-        fetch("/api/inventory"),
-      ]);
-      const eventData = await eventRes.json();
-      const recordData = await recordRes.json();
-      const employeeData = await employeeRes.json();
-      const inventoryData = await inventoryRes.json();
-
-      if (eventData.success) setEvents(eventData.data);
-      if (recordData.success) setRecords(recordData.data);
-      if (employeeData.success) {
-        setEmployees(employeeData.data);
-        setSelectEmployees(employeeData.data.map((e: Employee) => ({
-          value: e.id,
-          label: e.name
-        })));
-      }
-      if (inventoryData.success) {
-        const availItems = inventoryData.data.filter((i: InventoryItem) => i.availableQuantity > 0);
-        setInventory(availItems);
-        setSelectInventory(availItems.map((i: InventoryItem) => ({
-          value: i.id,
-          label: i.name
-        })));
-      }
-    } catch {
-      toast.error("获取数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreateEvent = async () => {
     if (!formData.name) {
@@ -155,7 +129,8 @@ export default function LoanPage() {
         toast.success("创建成功");
         setIsAddEventDialogOpen(false);
         setFormData({ name: "", description: "" });
-        fetchData();
+        activeEvents.refresh();
+        closedEvents.refresh();
       } else {
         toast.error(data.error);
       }
@@ -191,7 +166,9 @@ export default function LoanPage() {
         toast.success("借出成功");
         setIsLoanDialogOpen(false);
         setLoanData({ employeeId: "", clothingItemId: "", quantity: "1" });
-        fetchData();
+        activeEvents.refresh();
+        closedEvents.refresh();
+        loanRecords.refresh();
       } else {
         toast.error(data.error);
       }
@@ -212,7 +189,8 @@ export default function LoanPage() {
       const data = await res.json();
       if (data.success) {
         toast.success("活动已关闭");
-        fetchData();
+        activeEvents.refresh();
+        closedEvents.refresh();
       } else {
         toast.error(data.error);
       }
@@ -221,14 +199,9 @@ export default function LoanPage() {
     }
   };
 
-  const activeEvents = events.filter((e) => e.status === "active");
-  const closedEvents = events.filter((e) => e.status === "closed");
-
-  const filteredRecords = records.filter(
-    (r) =>
-      r.employee.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.clothingItem.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const availInventory = inventory.data.filter((i: InventoryItem) => i.availableQuantity > 0);
+  const selectEmployees = employees.data.map((e: Employee) => ({ value: e.id, label: e.name }));
+  const selectInventory = availInventory.map((i: InventoryItem) => ({ value: i.id, label: i.name }));
 
   return (
     <div className="space-y-6">
@@ -248,8 +221,8 @@ export default function LoanPage() {
           <div className="flex justify-between items-center">
             <Input
               placeholder="搜索活动..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={pageSearch}
+              onChange={(e) => setPageSearch(e.target.value)}
               className="max-w-xs"
             />
             <Button onClick={() => setIsAddEventDialogOpen(true)}>
@@ -261,17 +234,17 @@ export default function LoanPage() {
           {/* Active Events */}
           <div>
             <h3 className="text-lg font-medium mb-3">进行中的活动</h3>
-            {activeEvents.length === 0 ? (
+            {activeEvents.loading ? (
+              <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                加载中...
+              </div>
+            ) : activeEvents.data.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground border rounded-lg">
                 暂无进行中的活动
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {activeEvents
-                  .filter((e) =>
-                    e.name.toLowerCase().includes(search.toLowerCase())
-                  )
-                  .map((event) => (
+                {activeEvents.data.map((event) => (
                     <div
                       key={event.id}
                       className="border rounded-lg p-4 space-y-3"
@@ -333,27 +306,34 @@ export default function LoanPage() {
             )}
           </div>
 
+          <Pagination
+            page={activeEvents.page}
+            totalPages={activeEvents.totalPages}
+            total={activeEvents.total}
+            pageSize={activeEvents.pageSize}
+            onPageChange={activeEvents.setPage}
+            onPageSizeChange={activeEvents.setPageSize}
+            loading={activeEvents.loading}
+          />
+
           {/* Closed Events */}
-          {closedEvents.length > 0 && (
-            <div>
-              <h3 className="text-lg font-medium mb-3">已关闭的活动</h3>
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>活动名称</TableHead>
-                      <TableHead>描述</TableHead>
-                      <TableHead className="text-right">借出</TableHead>
-                      <TableHead className="text-right">归还</TableHead>
-                      <TableHead className="text-right">丢失</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {closedEvents
-                      .filter((e) =>
-                        e.name.toLowerCase().includes(search.toLowerCase())
-                      )
-                      .map((event) => (
+          {closedEvents.total > 0 && (
+            <>
+              <div>
+                <h3 className="text-lg font-medium mb-3">已关闭的活动</h3>
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>活动名称</TableHead>
+                        <TableHead>描述</TableHead>
+                        <TableHead className="text-right">借出</TableHead>
+                        <TableHead className="text-right">归还</TableHead>
+                        <TableHead className="text-right">丢失</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {closedEvents.data.map((event) => (
                         <TableRow key={event.id}>
                           <TableCell className="font-medium">
                             {event.name}
@@ -372,10 +352,20 @@ export default function LoanPage() {
                           </TableCell>
                         </TableRow>
                       ))}
-                  </TableBody>
-                </Table>
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
-            </div>
+              <Pagination
+                page={closedEvents.page}
+                totalPages={closedEvents.totalPages}
+                total={closedEvents.total}
+                pageSize={closedEvents.pageSize}
+                onPageChange={closedEvents.setPage}
+                onPageSizeChange={closedEvents.setPageSize}
+                loading={closedEvents.loading}
+              />
+            </>
           )}
         </TabsContent>
 
@@ -384,8 +374,8 @@ export default function LoanPage() {
           <div className="mb-4">
             <Input
               placeholder="搜索借出记录..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={loanRecords.search}
+              onChange={(e) => loanRecords.setSearch(e.target.value)}
               className="max-w-xs"
             />
           </div>
@@ -401,20 +391,20 @@ export default function LoanPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {loanRecords.loading ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8">
                       加载中...
                     </TableCell>
                   </TableRow>
-                ) : filteredRecords.length === 0 ? (
+                ) : loanRecords.data.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8">
                       暂无借出记录
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredRecords.map((record) => (
+                  loanRecords.data.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell>
                         <div>
@@ -461,6 +451,15 @@ export default function LoanPage() {
               </TableBody>
             </Table>
           </div>
+          <Pagination
+            page={loanRecords.page}
+            totalPages={loanRecords.totalPages}
+            total={loanRecords.total}
+            pageSize={loanRecords.pageSize}
+            onPageChange={loanRecords.setPage}
+            onPageSizeChange={loanRecords.setPageSize}
+            loading={loanRecords.loading}
+          />
         </TabsContent>
       </Tabs>
 
@@ -526,7 +525,7 @@ export default function LoanPage() {
                   <SelectValue placeholder="选择员工" />
                 </SelectTrigger>
                 <SelectContent>
-                  {employees.map((emp) => (
+                  {employees.data.map((emp) => (
                     <SelectItem key={emp.id} value={emp.id}>
                       {emp.name} {emp.department ? `(${emp.department})` : ""}
                     </SelectItem>
@@ -547,7 +546,7 @@ export default function LoanPage() {
                   <SelectValue placeholder="选择服装" />
                 </SelectTrigger>
                 <SelectContent>
-                  {inventory.map((item) => (
+                  {inventory.data.filter((i) => i.availableQuantity > 0).map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       {item.name} (可借: {item.availableQuantity}
                       {item.unit})

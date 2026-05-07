@@ -1,21 +1,40 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
 
 // GET /api/employee - 获取所有员工
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const employees = await prisma.employee.findMany({
-      include: {
-        loanRecords: {
-          select: {
-            id: true,
-            quantity: true,
-            status: true,
+    const { searchParams } = new URL(request.url);
+    const { page, pageSize } = getPaginationParams(searchParams);
+    const search = searchParams.get("search");
+
+    const where: Record<string, unknown> = {};
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { department: { contains: search } },
+      ];
+    }
+
+    const [employees, total] = await Promise.all([
+      prisma.employee.findMany({
+        where,
+        include: {
+          loanRecords: {
+            select: {
+              id: true,
+              quantity: true,
+              status: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.employee.count({ where }),
+    ]);
 
     // 计算每个员工的借出数量
     const result = employees.map((emp) => ({
@@ -24,7 +43,7 @@ export async function GET() {
       totalLoans: emp.loanRecords.length,
     }));
 
-    return NextResponse.json({ success: true, data: result });
+    return NextResponse.json(paginatedResponse(result, total, { page, pageSize }));
   } catch (error) {
     console.error("Error fetching employees:", error);
     return NextResponse.json(

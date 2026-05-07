@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RotateCcw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
+import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { SearchToolbar } from "./search-toolbar";
 import { toast } from "sonner";
 
@@ -50,13 +52,13 @@ interface LoanRecord {
 }
 
 interface PendingReturnTabProps {
-  records: LoanRecord[];
-  loading: boolean;
+  refreshKey: number;
   onRefresh: () => void;
 }
 
-export function PendingReturnTab({ records, loading, onRefresh }: PendingReturnTabProps) {
-  const [search, setSearch] = useState("");
+export function PendingReturnTab({ refreshKey, onRefresh }: PendingReturnTabProps) {
+  const records = usePaginatedFetch<LoanRecord>("/api/loan-record");
+
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
   const [isLostDialogOpen, setIsLostDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<LoanRecord | null>(null);
@@ -64,18 +66,18 @@ export function PendingReturnTab({ records, loading, onRefresh }: PendingReturnT
   const [lostReason, setLostReason] = useState("");
   const [lostRemark, setLostRemark] = useState("");
 
+  // 其他标签页操作后刷新数据
+  useEffect(() => {
+    if (refreshKey > 0) records.refresh();
+  }, [refreshKey]);
+
   const getPendingQuantity = (record: LoanRecord) => {
     const lostQty = record.lostRecords?.reduce((sum, lr) => sum + lr.quantity, 0) || 0;
     return record.quantity - (record.returnedQuantity || 0) - lostQty;
   };
 
-  const filteredRecords = records.filter(
-    (r) =>
-      getPendingQuantity(r) > 0 &&
-      (r.employee.name.toLowerCase().includes(search.toLowerCase()) ||
-        r.clothingItem.name.toLowerCase().includes(search.toLowerCase()) ||
-        r.loanEvent.name.toLowerCase().includes(search.toLowerCase()))
-  );
+  // 仅显示有未处理数量的记录
+  const pendingData = records.data.filter((r) => getPendingQuantity(r) > 0);
 
   const openReturnDialog = (record: LoanRecord) => {
     setSelectedRecord(record);
@@ -114,6 +116,7 @@ export function PendingReturnTab({ records, loading, onRefresh }: PendingReturnT
         toast.success("归还成功");
         setIsReturnDialogOpen(false);
         setSelectedRecord(null);
+        records.refresh();
         onRefresh();
       } else {
         toast.error(data.error);
@@ -149,6 +152,7 @@ export function PendingReturnTab({ records, loading, onRefresh }: PendingReturnT
         toast.success("登记成功");
         setIsLostDialogOpen(false);
         setSelectedRecord(null);
+        records.refresh();
         onRefresh();
       } else {
         toast.error(data.error);
@@ -161,8 +165,8 @@ export function PendingReturnTab({ records, loading, onRefresh }: PendingReturnT
   return (
     <div className="space-y-4">
       <SearchToolbar
-        search={search}
-        onSearchChange={setSearch}
+        search={records.search}
+        onSearchChange={records.setSearch}
         placeholder="搜索员工、服装或活动..."
       />
 
@@ -179,20 +183,20 @@ export function PendingReturnTab({ records, loading, onRefresh }: PendingReturnT
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {records.loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8">
                   加载中...
                 </TableCell>
               </TableRow>
-            ) : filteredRecords.length === 0 ? (
+            ) : pendingData.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8">
                   暂无待归还记录
                 </TableCell>
               </TableRow>
             ) : (
-              filteredRecords.map((record) => (
+              pendingData.map((record) => (
                 <TableRow key={record.id}>
                   <TableCell>
                     <div>
@@ -245,6 +249,16 @@ export function PendingReturnTab({ records, loading, onRefresh }: PendingReturnT
           </TableBody>
         </Table>
       </div>
+
+      <Pagination
+        page={records.page}
+        totalPages={records.totalPages}
+        total={records.total}
+        pageSize={records.pageSize}
+        onPageChange={records.setPage}
+        onPageSizeChange={records.setPageSize}
+        loading={records.loading}
+      />
 
       {/* Return Dialog */}
       <Dialog open={isReturnDialogOpen} onOpenChange={setIsReturnDialogOpen}>

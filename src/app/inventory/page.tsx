@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Search, Pencil, Trash2, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/header";
+import { Pagination } from "@/components/ui/pagination";
+import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { toast } from "sonner";
 
 interface Category {
@@ -56,15 +58,14 @@ interface InventoryItem {
 }
 
 export default function InventoryPage() {
-  const [items, setItems] = useState<InventoryItem[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [selectCategories, setSelectCategories] = useState<{value: string; label: string}[]>([])
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const handleCategoryChange = (value: string | null) => {
-    setSelectedCategory(value || "all");
-  };
+  const categories = usePaginatedFetch<Category>("/api/category", { defaultPageSize: 100 });
+  const inventory = usePaginatedFetch<InventoryItem>("/api/inventory");
+
+  const selectCategoryItems = [
+    { value: "all", label: "所有品类" },
+    ...categories.data.map((c) => ({ value: c.id, label: c.name })),
+  ];
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -80,34 +81,6 @@ export default function InventoryPage() {
     quantity: "",
     unit: "件",
   });
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const [inventoryRes, categoryRes] = await Promise.all([
-        fetch("/api/inventory"),
-        fetch("/api/category"),
-      ]);
-      const inventoryData = await inventoryRes.json();
-      const categoryData = await categoryRes.json();
-      if (inventoryData.success) setItems(inventoryData.data);
-      if (categoryData.success) {
-        const data: Category[] = categoryData.data
-        setCategories(data);
-        setSelectCategories([
-          { value: "all", label: "所有品类"},
-          ...data.map((item) => ({value: item.id, label: item.name }))
-        ])
-      }
-    } catch {
-      toast.error("获取数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAdd = async () => {
     if (!formData.name || !formData.categoryId || !formData.quantity) {
@@ -132,7 +105,7 @@ export default function InventoryPage() {
         toast.success("添加成功");
         setIsAddDialogOpen(false);
         resetForm();
-        fetchData();
+        inventory.refresh();
       } else {
         toast.error(data.error);
       }
@@ -160,7 +133,7 @@ export default function InventoryPage() {
         toast.success("更新成功");
         setIsEditDialogOpen(false);
         setEditingItem(null);
-        fetchData();
+        inventory.refresh();
       } else {
         toast.error(data.error);
       }
@@ -179,7 +152,7 @@ export default function InventoryPage() {
       const data = await res.json();
       if (data.success) {
         toast.success("删除成功");
-        fetchData();
+        inventory.refresh();
       } else {
         toast.error(data.error);
       }
@@ -215,7 +188,7 @@ export default function InventoryPage() {
         toast.success("添加成功");
         setIsAddCategoryDialogOpen(false);
         setCategoryFormData({ name: "", nameEn: "" });
-        fetchData();
+        categories.refresh();
       } else {
         toast.error(data.error);
       }
@@ -238,7 +211,7 @@ export default function InventoryPage() {
         toast.success("更新成功");
         setIsEditCategoryDialogOpen(false);
         setEditingCategory(null);
-        fetchData();
+        categories.refresh();
       } else {
         toast.error(data.error);
       }
@@ -257,7 +230,7 @@ export default function InventoryPage() {
       const data = await res.json();
       if (data.success) {
         toast.success("删除成功");
-        fetchData();
+        categories.refresh();
       } else {
         toast.error(data.error);
       }
@@ -265,16 +238,6 @@ export default function InventoryPage() {
       toast.error("删除失败");
     }
   };
-
-  const filteredItems = items.filter((item) => {
-    const matchesSearch =
-      search === "" ||
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.size?.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "all" || item.category.id === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
 
   return (
     <div className="space-y-6">
@@ -289,17 +252,17 @@ export default function InventoryPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="搜索服装名称或尺码..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={inventory.search}
+            onChange={(e) => inventory.setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <Select value={selectedCategory} items={selectCategories} onValueChange={handleCategoryChange}>
+        <Select value={inventory.filters.categoryId || "all"} items={selectCategoryItems} onValueChange={(v) => inventory.setFilters(v === "all" ? {} : { categoryId: v || "" })}>
           <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="筛选品类" />
           </SelectTrigger>
           <SelectContent>
-            {selectCategories.map((cat) => (
+            {selectCategoryItems.map((cat) => (
               <SelectItem key={cat.value} value={cat.value}>
                 {cat.label}
               </SelectItem>
@@ -340,20 +303,20 @@ export default function InventoryPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {inventory.loading ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8">
                   加载中...
                 </TableCell>
               </TableRow>
-            ) : filteredItems.length === 0 ? (
+            ) : inventory.data.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8">
                   暂无数据
                 </TableCell>
               </TableRow>
             ) : (
-              filteredItems.map((item) => {
+              inventory.data.map((item) => {
                 const lost = item.lostQuantity || 0;
                 const borrowed = item.borrowedQuantity || 0;
                 return (
@@ -401,6 +364,16 @@ export default function InventoryPage() {
         </Table>
       </div>
 
+      <Pagination
+        page={inventory.page}
+        totalPages={inventory.totalPages}
+        total={inventory.total}
+        pageSize={inventory.pageSize}
+        onPageChange={inventory.setPage}
+        onPageSizeChange={inventory.setPageSize}
+        loading={inventory.loading}
+      />
+
       {/* Add Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent>
@@ -423,14 +396,14 @@ export default function InventoryPage() {
               <Label htmlFor="category">品类 *</Label>
               <Select
                 value={formData.categoryId}
-                items={selectCategories}
+                items={selectCategoryItems}
                 onValueChange={(v) => setFormData({ ...formData, categoryId: v || "" })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="选择品类" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
+                  {categories.data.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       {cat.name}
                     </SelectItem>
@@ -555,14 +528,14 @@ export default function InventoryPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {categories.length === 0 ? (
+                  {categories.data.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-4">
                         暂无品类
                       </TableCell>
                     </TableRow>
                   ) : (
-                    categories.map((cat) => (
+                    categories.data.map((cat) => (
                       <TableRow key={cat.id}>
                         <TableCell className="font-medium">{cat.name}</TableCell>
                         <TableCell className="text-muted-foreground">

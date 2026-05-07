@@ -5,7 +5,10 @@
 ### 响应格式
 
 ```typescript
-// 成功
+// 成功（列表接口返回分页信息）
+{ success: true, data: [...], pagination: { total: number, page: number, pageSize: number, totalPages: number } }
+
+// 成功（非列表接口）
 { success: true, data: ... }
 
 // 失败
@@ -14,37 +17,22 @@
 
 ### 查询参数
 
-支持 URL 参数过滤，如 `?eventId=xxx&status=borrowed`
+- 支持 URL 参数过滤，如 `?eventId=xxx&status=borrowed`
+- 列表接口统一支持分页参数：
+  - `page` - 页码（默认 1）
+  - `pageSize` - 每页条数（默认 20，最大 100）
 
 ---
 
 ## 库存管理 `/api/inventory`
 
-### GET 获取库存列表
+### GET 获取库存列表（支持分页）
 
 查询参数：
+- `page` - 页码（默认 1）
+- `pageSize` - 每页条数（默认 20）
 - `categoryId` - 按品类筛选
-- `search` - 搜索名称或尺码
-
-响应示例：
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "xxx",
-      "name": "M码黑色裤子",
-      "categoryId": "xxx",
-      "size": "M",
-      "totalQuantity": 100,
-      "availableQuantity": 80,
-      "lostQuantity": 5,
-      "borrowedQuantity": 15,
-      "unit": "件"
-    }
-  ]
-}
-```
+- `search` - 搜索名称或尺码（服务端模糊匹配）
 
 ### POST 创建库存（入库）
 
@@ -99,7 +87,13 @@
 
 ## 活动管理 `/api/loan`
 
-### GET 获取活动列表
+### GET 获取活动列表（支持分页）
+
+查询参数：
+- `page` - 页码（默认 1）
+- `pageSize` - 每页条数（默认 20）
+- `search` - 按活动名称搜索
+- `status` - 按状态筛选（active/closed）
 
 返回每个活动的统计信息：
 - `totalBorrowed` - 借出总数
@@ -139,9 +133,12 @@
 
 ## 借出记录 `/api/loan-record`
 
-### GET 获取借出记录
+### GET 获取借出记录（支持分页）
 
 查询参数：
+- `page` - 页码（默认 1）
+- `pageSize` - 每页条数（默认 20）
+- `search` - 搜索员工、服装或活动名称
 - `eventId` - 按活动筛选
 - `employeeId` - 按员工筛选
 - `status` - 按状态筛选（borrowed/returned/lost）
@@ -179,9 +176,14 @@
 
 ## 员工管理 `/api/employee`
 
-### GET 获取员工列表
+### GET 获取员工列表（支持分页）
 
-返回员工的借出统计。
+查询参数：
+- `page` - 页码（默认 1）
+- `pageSize` - 每页条数（默认 20）
+- `search` - 搜索员工姓名或部门
+
+返回每个员工的借出统计。
 
 ### POST 创建员工
 
@@ -241,9 +243,12 @@
 
 ## 归还记录 `/api/return-record`
 
-### GET 获取归还记录
+### GET 获取归还记录（支持分页）
 
 查询参数：
+- `page` - 页码（默认 1）
+- `pageSize` - 每页条数（默认 20）
+- `search` - 搜索员工、服装或活动名称
 - `eventId` - 按活动筛选
 - `employeeId` - 按员工筛选
 
@@ -268,11 +273,17 @@
 
 ## 丢失记录 `/api/lost-record`
 
-### GET 获取丢失记录
+### GET 获取丢失记录（支持分页）
 
 查询参数：
+- `page` - 页码（默认 1）
+- `pageSize` - 每页条数（默认 20）
+- `search` - 搜索员工、服装或活动名称
+- `eventId` - 按活动筛选
 - `employeeId` - 按员工筛选
 - `clothingItemId` - 按服装筛选
+- `startDate` - 开始日期
+- `endDate` - 结束日期
 
 ### POST 创建丢失记录
 

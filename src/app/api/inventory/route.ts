@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
 
 // GET /api/inventory - 获取所有库存
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const { page, pageSize } = getPaginationParams(searchParams);
     const categoryId = searchParams.get("categoryId");
     const search = searchParams.get("search");
 
@@ -17,19 +19,24 @@ export async function GET(request: Request) {
       ];
     }
 
-    const items = await prisma.clothingItem.findMany({
-      where,
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true,
-            nameEn: true,
+    const [items, total] = await Promise.all([
+      prisma.clothingItem.findMany({
+        where,
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              nameEn: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.clothingItem.count({ where }),
+    ]);
 
     // 添加计算字段
     const itemsWithStats = items.map((item) => ({
@@ -37,7 +44,7 @@ export async function GET(request: Request) {
       borrowedQuantity: item.totalQuantity - item.availableQuantity - item.lostQuantity,
     }));
 
-    return NextResponse.json({ success: true, data: itemsWithStats });
+    return NextResponse.json(paginatedResponse(itemsWithStats, total, { page, pageSize }));
   } catch (error) {
     console.error("Error fetching inventory:", error);
     return NextResponse.json(

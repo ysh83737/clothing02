@@ -1,36 +1,52 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
 
 // GET /api/loan - 获取所有活动
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const events = await prisma.loanEvent.findMany({
-      include: {
-        loanRecords: {
-          include: {
-            employee: {
-              select: {
-                id: true,
-                name: true,
-                department: true,
+    const { searchParams } = new URL(request.url);
+    const { page, pageSize } = getPaginationParams(searchParams);
+    const search = searchParams.get("search");
+    const status = searchParams.get("status");
+
+    const where: Record<string, unknown> = {};
+    if (search) where.name = { contains: search };
+    if (status) where.status = status;
+
+    const [events, total] = await Promise.all([
+      prisma.loanEvent.findMany({
+        where,
+        include: {
+          loanRecords: {
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  name: true,
+                  department: true,
+                },
               },
-            },
-            clothingItem: {
-              include: {
-                category: {
-                  select: {
-                    id: true,
-                    name: true,
+              clothingItem: {
+                include: {
+                  category: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
                   },
                 },
               },
+              lostRecords: true,
             },
-            lostRecords: true,
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.loanEvent.count({ where }),
+    ]);
 
     // 计算每个活动的统计
     const result = events.map((event) => {
@@ -66,7 +82,7 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ success: true, data: result });
+    return NextResponse.json(paginatedResponse(result, total, { page, pageSize }));
   } catch (error) {
     console.error("Error fetching loan events:", error);
     return NextResponse.json(

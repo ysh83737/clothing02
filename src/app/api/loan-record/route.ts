@@ -1,13 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
 
 // GET /api/loan-record - 获取所有借出记录
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const { page, pageSize } = getPaginationParams(searchParams);
     const eventId = searchParams.get("eventId");
     const employeeId = searchParams.get("employeeId");
     const status = searchParams.get("status");
+    const search = searchParams.get("search");
 
     const where: Record<string, unknown> = {};
     if (eventId) where.loanEventId = eventId;
@@ -20,43 +23,56 @@ export async function GET(request: Request) {
       where.status = status;
     }
 
-    const records = await prisma.loanRecord.findMany({
-      where,
-      include: {
-        loanEvent: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
+    if (search) {
+      where.OR = [
+        { employee: { name: { contains: search } } },
+        { clothingItem: { name: { contains: search } } },
+        { loanEvent: { name: { contains: search } } },
+      ];
+    }
+
+    const [records, total] = await Promise.all([
+      prisma.loanRecord.findMany({
+        where,
+        include: {
+          loanEvent: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+            },
           },
-        },
-        employee: {
-          select: {
-            id: true,
-            name: true,
-            department: true,
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              department: true,
+            },
           },
-        },
-        clothingItem: {
-          include: {
-            category: {
-              select: {
-                id: true,
-                name: true,
+          clothingItem: {
+            include: {
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
           },
-        },
-        lostRecords: {
-          select: {
-            quantity: true,
+          lostRecords: {
+            select: {
+              quantity: true,
+            },
           },
         },
-      },
-      orderBy: { borrowedAt: "desc" },
-    });
+        orderBy: { borrowedAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.loanRecord.count({ where }),
+    ]);
 
-    return NextResponse.json({ success: true, data: records });
+    return NextResponse.json(paginatedResponse(records, total, { page, pageSize }));
   } catch (error) {
     console.error("Error fetching loan records:", error);
     return NextResponse.json(

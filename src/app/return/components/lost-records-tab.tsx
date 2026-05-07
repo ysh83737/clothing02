@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertTriangle, Calendar, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Pagination } from "@/components/ui/pagination";
+import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { SearchToolbar } from "./search-toolbar";
 
 interface LostRecord {
@@ -56,39 +58,23 @@ interface Employee {
 }
 
 interface LostRecordsTabProps {
-  records: LostRecord[];
-  loading: boolean;
+  refreshKey: number;
   events: LoanEvent[];
   employees: Employee[];
 }
 
 export function LostRecordsTab({
-  records,
-  loading,
+  refreshKey,
   events,
   employees,
 }: LostRecordsTabProps) {
-  const [search, setSearch] = useState("");
-  const [selectedEvent, setSelectedEvent] = useState<string>("all");
-  const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
+  const records = usePaginatedFetch<LostRecord>("/api/lost-record");
   const [selectedRecord, setSelectedRecord] = useState<LostRecord | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
-  const filteredRecords = records.filter((record) => {
-    const matchesSearch =
-      search === "" ||
-      record.employee.name.toLowerCase().includes(search.toLowerCase()) ||
-      record.clothingItem.name.toLowerCase().includes(search.toLowerCase()) ||
-      record.loanRecord.loanEvent.name.toLowerCase().includes(search.toLowerCase());
-
-    const matchesEvent =
-      selectedEvent === "all" || record.loanRecord.loanEvent.id === selectedEvent;
-
-    const matchesEmployee =
-      selectedEmployee === "all" || record.employee.id === selectedEmployee;
-
-    return matchesSearch && matchesEvent && matchesEmployee;
-  });
+  useEffect(() => {
+    if (refreshKey > 0) records.refresh();
+  }, [refreshKey]);
 
   const openDetailDialog = (record: LostRecord) => {
     setSelectedRecord(record);
@@ -98,17 +84,21 @@ export function LostRecordsTab({
   return (
     <div className="space-y-4">
       <SearchToolbar
-        search={search}
-        onSearchChange={setSearch}
+        search={records.search}
+        onSearchChange={records.setSearch}
         placeholder="搜索员工、服装或活动..."
         showEventFilter
         showEmployeeFilter
         events={events}
         employees={employees}
-        selectedEvent={selectedEvent}
-        selectedEmployee={selectedEmployee}
-        onEventChange={setSelectedEvent}
-        onEmployeeChange={setSelectedEmployee}
+        selectedEvent={records.filters.eventId || "all"}
+        selectedEmployee={records.filters.employeeId || "all"}
+        onEventChange={(v) =>
+          records.setFilters(v === "all" ? { employeeId: records.filters.employeeId || "" } : { ...records.filters, eventId: v })
+        }
+        onEmployeeChange={(v) =>
+          records.setFilters(v === "all" ? { eventId: records.filters.eventId || "" } : { ...records.filters, employeeId: v })
+        }
       />
 
       <div className="border rounded-lg">
@@ -124,20 +114,20 @@ export function LostRecordsTab({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {records.loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8">
                   加载中...
                 </TableCell>
               </TableRow>
-            ) : filteredRecords.length === 0 ? (
+            ) : records.data.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8">
                   暂无丢失记录
                 </TableCell>
               </TableRow>
             ) : (
-              filteredRecords.map((record) => (
+              records.data.map((record) => (
                 <TableRow key={record.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -181,6 +171,16 @@ export function LostRecordsTab({
           </TableBody>
         </Table>
       </div>
+
+      <Pagination
+        page={records.page}
+        totalPages={records.totalPages}
+        total={records.total}
+        pageSize={records.pageSize}
+        onPageChange={records.setPage}
+        onPageSizeChange={records.setPageSize}
+        loading={records.loading}
+      />
 
       {/* Detail Dialog */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
