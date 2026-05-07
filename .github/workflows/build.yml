@@ -14,7 +14,7 @@ jobs:
           node-version: 24
 
       - name: pnpm hoisted 模式
-        run: echo "node-linker=hoisted" > .npmrc
+        run: echo "node-linker=hoisted" >> .npmrc
 
       - name: 安装依赖
         uses: pnpm/action-setup@v6

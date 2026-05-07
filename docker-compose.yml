@@ -1,0 +1,22 @@
+services:
+  build:
+    image: node:24-alpine
+    platform: linux/arm64
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: >
+      sh -c "
+        echo "node-linker=hoisted" >> .npmrc &&
+        corepack enable &&
+        corepack prepare pnpm@latest --activate &&
+        pnpm install &&
+        echo '✅ 搭建环境完成' &&
+        pnpm db:init &&
+        echo '✅ 初始化数据库完成' &&
+        pnpm run build &&
+        echo '✅ 构建完成' &&
+        cp -r .next/standalone dist && cp -r .next/static dist/.next && cp -r public dist &&
+        tar -cvf dist.tar.gz dist &&
+        echo '✅ 打包完成，文件：dist.tar.gz'
+      "
