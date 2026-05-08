@@ -256,7 +256,7 @@ export default function InventoryPage() {
           onValueChange={(v) => inventory.setFilters(v === "all" ? {} : { categoryId: v || "" })}
           items={selectCategoryItems}
           placeholder="筛选品类"
-          triggerClassName="w-full sm:w-[200px]"
+          triggerClassName="w-full sm:w-[300px]"
         />
         <Button
           variant="outline"
