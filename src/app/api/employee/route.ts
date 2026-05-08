@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
+import { computeNamePinyin } from "@/lib/pinyin";
 
 // GET /api/employee - 获取所有员工
 export async function GET(request: Request) {
@@ -13,6 +14,7 @@ export async function GET(request: Request) {
     if (search) {
       where.OR = [
         { name: { contains: search } },
+        { namePinyin: { contains: search.toLowerCase() } },
         { department: { contains: search } },
       ];
     }
@@ -67,7 +69,7 @@ export async function POST(request: Request) {
     }
 
     const employee = await prisma.employee.create({
-      data: { name, department, phone },
+      data: { name, namePinyin: computeNamePinyin(name), department, phone },
     });
 
     return NextResponse.json({ success: true, data: employee });
@@ -95,7 +97,7 @@ export async function PUT(request: Request) {
 
     const employee = await prisma.employee.update({
       where: { id },
-      data: { name, department, phone },
+      data: { name, namePinyin: name ? computeNamePinyin(name) : undefined, department, phone },
     });
 
     return NextResponse.json({ success: true, data: employee });

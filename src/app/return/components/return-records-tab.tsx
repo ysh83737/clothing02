@@ -46,26 +46,12 @@ interface ReturnRecord {
   };
 }
 
-interface LoanEvent {
-  id: string;
-  name: string;
-}
-
-interface Employee {
-  id: string;
-  name: string;
-}
-
 interface ReturnRecordsTabProps {
   refreshKey: number;
-  events: LoanEvent[];
-  employees: Employee[];
 }
 
 export function ReturnRecordsTab({
   refreshKey,
-  events,
-  employees,
 }: ReturnRecordsTabProps) {
   const records = usePaginatedFetch<ReturnRecord>("/api/return-record");
   const [selectedRecord, setSelectedRecord] = useState<ReturnRecord | null>(null);
@@ -88,8 +74,6 @@ export function ReturnRecordsTab({
         placeholder="搜索员工、服装或活动..."
         showEventFilter
         showEmployeeFilter
-        events={events}
-        employees={employees}
         selectedEvent={records.filters.eventId || "all"}
         selectedEmployee={records.filters.employeeId || "all"}
         onEventChange={(v) =>

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
+import { computeNamePinyin } from "@/lib/pinyin";
 
 // GET /api/inventory - 获取所有库存
 export async function GET(request: Request) {
@@ -15,6 +16,7 @@ export async function GET(request: Request) {
     if (search) {
       where.OR = [
         { name: { contains: search } },
+        { namePinyin: { contains: search.toLowerCase() } },
         { size: { contains: search } },
       ];
     }
@@ -103,6 +105,7 @@ export async function POST(request: Request) {
       item = await prisma.clothingItem.create({
         data: {
           name,
+          namePinyin: computeNamePinyin(name),
           categoryId,
           size: size || null,
           totalQuantity: quantity,
@@ -139,6 +142,7 @@ export async function PUT(request: Request) {
       where: { id },
       data: {
         name,
+        namePinyin: name ? computeNamePinyin(name) : undefined,
         size: size || null,
         unit,
       },

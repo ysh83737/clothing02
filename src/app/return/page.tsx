@@ -11,16 +11,6 @@ import {
 } from "./components";
 import { toast } from "sonner";
 
-interface LoanEvent {
-  id: string;
-  name: string;
-}
-
-interface Employee {
-  id: string;
-  name: string;
-}
-
 interface Stats {
   totalPendingReturn: number;
   totalLost: number;
@@ -32,28 +22,12 @@ export default function ReturnPage() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // 筛选下拉数据
-  const [events, setEvents] = useState<LoanEvent[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-
   const refreshAll = useCallback(async () => {
     setStatsLoading(true);
     try {
-      const [statsRes, eventRes, employeeRes] = await Promise.all([
-        fetch("/api/stats/return-stats"),
-        fetch("/api/loan?pageSize=200"),
-        fetch("/api/employee?pageSize=200"),
-      ]);
-
-      const [statsData, eventData, employeeData] = await Promise.all([
-        statsRes.json(),
-        eventRes.json(),
-        employeeRes.json(),
-      ]);
-
+      const statsRes = await fetch("/api/stats/return-stats");
+      const statsData = await statsRes.json();
       if (statsData.success) setStats(statsData.data);
-      if (eventData.success) setEvents(eventData.data);
-      if (employeeData.success) setEmployees(employeeData.data);
     } catch {
       toast.error("获取数据失败");
     } finally {
@@ -102,16 +76,12 @@ export default function ReturnPage() {
         <TabsContent value="return">
           <ReturnRecordsTab
             refreshKey={refreshKey}
-            events={events}
-            employees={employees}
           />
         </TabsContent>
 
         <TabsContent value="lost">
           <LostRecordsTab
             refreshKey={refreshKey}
-            events={events}
-            employees={employees}
           />
         </TabsContent>
       </Tabs>

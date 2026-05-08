@@ -1,21 +1,41 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
+import { computeNamePinyin } from "@/lib/pinyin";
 
 // GET /api/category - 获取所有品类
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const categories = await prisma.clothingCategory.findMany({
-      include: {
-        items: {
-          select: {
-            id: true,
-            totalQuantity: true,
-            availableQuantity: true,
+    const { searchParams } = new URL(request.url);
+    const { page, pageSize } = getPaginationParams(searchParams);
+    const search = searchParams.get("search");
+
+    const where: Record<string, unknown> = {};
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { namePinyin: { contains: search.toLowerCase() } },
+      ];
+    }
+
+    const [categories, total] = await Promise.all([
+      prisma.clothingCategory.findMany({
+        where,
+        include: {
+          items: {
+            select: {
+              id: true,
+              totalQuantity: true,
+              availableQuantity: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.clothingCategory.count({ where }),
+    ]);
 
     // 计算每个品类的库存汇总
     const result = categories.map((cat) => ({
@@ -28,7 +48,7 @@ export async function GET() {
       ),
     }));
 
-    return NextResponse.json({ success: true, data: result });
+    return NextResponse.json(paginatedResponse(result, total, { page, pageSize }));
   } catch (error) {
     console.error("Error fetching categories:", error);
     return NextResponse.json(
@@ -52,7 +72,7 @@ export async function POST(request: Request) {
     }
 
     const category = await prisma.clothingCategory.create({
-      data: { name, nameEn },
+      data: { name, nameEn, namePinyin: computeNamePinyin(name) },
     });
 
     return NextResponse.json({ success: true, data: category });

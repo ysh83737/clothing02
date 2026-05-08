@@ -47,26 +47,12 @@ interface LostRecord {
   };
 }
 
-interface LoanEvent {
-  id: string;
-  name: string;
-}
-
-interface Employee {
-  id: string;
-  name: string;
-}
-
 interface LostRecordsTabProps {
   refreshKey: number;
-  events: LoanEvent[];
-  employees: Employee[];
 }
 
 export function LostRecordsTab({
   refreshKey,
-  events,
-  employees,
 }: LostRecordsTabProps) {
   const records = usePaginatedFetch<LostRecord>("/api/lost-record");
   const [selectedRecord, setSelectedRecord] = useState<LostRecord | null>(null);
@@ -89,8 +75,6 @@ export function LostRecordsTab({
         placeholder="搜索员工、服装或活动..."
         showEventFilter
         showEmployeeFilter
-        events={events}
-        employees={employees}
         selectedEvent={records.filters.eventId || "all"}
         selectedEmployee={records.filters.employeeId || "all"}
         onEventChange={(v) =>

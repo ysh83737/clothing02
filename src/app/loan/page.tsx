@@ -20,12 +20,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SearchableSelect,
+} from "@/components/ui/searchable-select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,12 +29,6 @@ import { PageHeader } from "@/components/layout/header";
 import { Pagination } from "@/components/ui/pagination";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
 import { toast } from "sonner";
-
-interface Employee {
-  id: string;
-  name: string;
-  department: string | null;
-}
 
 interface InventoryItem {
   id: string;
@@ -96,8 +86,7 @@ export default function LoanPage() {
     extraParams: { status: "closed", search: debouncedPageSearch },
   });
   const loanRecords = usePaginatedFetch<LoanRecord>("/api/loan-record");
-  const employees = usePaginatedFetch<Employee>("/api/employee", { defaultPageSize: 200 });
-  const inventory = usePaginatedFetch<InventoryItem>("/api/inventory", { defaultPageSize: 200 });
+  const inventory = usePaginatedFetch<InventoryItem>("/api/inventory");
 
   const [isAddEventDialogOpen, setIsAddEventDialogOpen] = useState(false);
   const [isLoanDialogOpen, setIsLoanDialogOpen] = useState(false);
@@ -239,8 +228,6 @@ export default function LoanPage() {
   };
 
   const availInventory = inventory.data.filter((i: InventoryItem) => i.availableQuantity > 0);
-  const selectEmployees = employees.data.map((e: Employee) => ({ value: e.id, label: e.name }));
-  const selectInventory = availInventory.map((i: InventoryItem) => ({ value: i.id, label: i.name }));
 
   return (
     <div className="space-y-6">
@@ -553,22 +540,17 @@ export default function LoanPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>选择员工 *</Label>
-              <Select
+              <SearchableSelect
                 value={loanEmployeeId}
-                items={selectEmployees}
                 onValueChange={(v) => setLoanEmployeeId(v || "")}
+                endpoint="/api/employee"
+                pageSize={20}
+                placeholder="选择员工"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择员工" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.data.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      {emp.name} {emp.department ? `(${emp.department})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {(item: any) =>
+                  <>{item.name} {item.department ? `(${item.department})` : ""}</>
+                }
+              </SearchableSelect>
             </div>
 
             <div className="space-y-3">
@@ -576,36 +558,21 @@ export default function LoanPage() {
               {loanItems.map((item, index) => (
                 <div key={item.key} className="flex items-end gap-2">
                   <div className="flex-1">
-                    <Select
+                    <SearchableSelect
                       value={item.clothingItemId}
-                      items={selectInventory}
                       onValueChange={(v) =>
                         updateLoanItem(item.key, "clothingItemId", v || "")
                       }
+                      endpoint="/api/inventory"
+                      pageSize={20}
+                      placeholder="选择服装"
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择服装" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {inventory.data
-                          .filter(
-                            (i) =>
-                              i.availableQuantity > 0 &&
-                              (i.id === item.clothingItemId ||
-                                !loanItems.some(
-                                  (li) =>
-                                    li.key !== item.key &&
-                                    li.clothingItemId === i.id
-                                ))
-                          )
-                          .map((inv) => (
-                            <SelectItem key={inv.id} value={inv.id}>
-                              {inv.name} (可借: {inv.availableQuantity}
-                              {inv.unit})
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                      {(inv: any) => (
+                        <>
+                          {inv.name} (可借: {inv.availableQuantity}{inv.unit})
+                        </>
+                      )}
+                    </SearchableSelect>
                   </div>
                   <div className="w-24">
                     <Input

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { computeNamePinyin } from "@/lib/pinyin";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -21,7 +22,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     const category = await prisma.clothingCategory.update({
       where: { id },
-      data: { name, nameEn },
+      data: { name, namePinyin: name ? computeNamePinyin(name) : undefined, nameEn },
     });
 
     return NextResponse.json({ success: true, data: category });

@@ -2,13 +2,7 @@
 
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface SearchToolbarProps {
   search: string;
@@ -16,8 +10,6 @@ interface SearchToolbarProps {
   placeholder?: string;
   showEventFilter?: boolean;
   showEmployeeFilter?: boolean;
-  events?: { id: string; name: string }[];
-  employees?: { id: string; name: string }[];
   selectedEvent?: string;
   selectedEmployee?: string;
   onEventChange?: (value: string) => void;
@@ -30,8 +22,6 @@ export function SearchToolbar({
   placeholder = "搜索员工、服装或活动...",
   showEventFilter = false,
   showEmployeeFilter = false,
-  events = [],
-  employees = [],
   selectedEvent = "all",
   selectedEmployee = "all",
   onEventChange,
@@ -49,34 +39,35 @@ export function SearchToolbar({
         />
       </div>
       {showEventFilter && onEventChange && (
-        <Select value={selectedEvent} onValueChange={(v) => onEventChange(v || "all")}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="筛选活动" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">所有活动</SelectItem>
-            {events.map((event) => (
-              <SelectItem key={event.id} value={event.id}>
-                {event.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          value={selectedEvent}
+          onValueChange={(v) => onEventChange(v === "all" ? v : v || "all")}
+          endpoint="/api/loan"
+          endpointParams={{ status: "active" }}
+          pageSize={20}
+          prependItems={[{ value: "all", label: "所有活动" }]}
+          placeholder="筛选活动"
+          triggerClassName="w-full sm:w-[180px]"
+        >
+          {(item: any, isSelected: boolean) => item.label ?? item.name}
+        </SearchableSelect>
       )}
       {showEmployeeFilter && onEmployeeChange && (
-        <Select value={selectedEmployee} onValueChange={(v) => onEmployeeChange(v || "all")}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="筛选员工" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">所有员工</SelectItem>
-            {employees.map((emp) => (
-              <SelectItem key={emp.id} value={emp.id}>
-                {emp.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          value={selectedEmployee}
+          onValueChange={(v) => onEmployeeChange(v === "all" ? v : v || "all")}
+          endpoint="/api/employee"
+          pageSize={20}
+          prependItems={[{ value: "all", label: "所有员工" }]}
+          placeholder="筛选员工"
+          triggerClassName="w-full sm:w-[180px]"
+        >
+          {(item: any, isSelected: boolean) =>
+            item.value === "all"
+              ? item.label
+              : `${item.name}${item.department ? ` (${item.department})` : ""}`
+          }
+        </SearchableSelect>
       )}
     </div>
   );

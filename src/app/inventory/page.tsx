@@ -19,13 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/header";
@@ -257,18 +251,13 @@ export default function InventoryPage() {
             className="pl-9"
           />
         </div>
-        <Select value={inventory.filters.categoryId || "all"} items={selectCategoryItems} onValueChange={(v) => inventory.setFilters(v === "all" ? {} : { categoryId: v || "" })}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="筛选品类" />
-          </SelectTrigger>
-          <SelectContent>
-            {selectCategoryItems.map((cat) => (
-              <SelectItem key={cat.value} value={cat.value}>
-                {cat.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          value={inventory.filters.categoryId || "all"}
+          onValueChange={(v) => inventory.setFilters(v === "all" ? {} : { categoryId: v || "" })}
+          items={selectCategoryItems}
+          placeholder="筛选品类"
+          triggerClassName="w-full sm:w-[200px]"
+        />
         <Button
           variant="outline"
           onClick={() => setIsCategoryDialogOpen(true)}
@@ -394,22 +383,12 @@ export default function InventoryPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">品类 *</Label>
-              <Select
+              <SearchableSelect
                 value={formData.categoryId}
-                items={selectCategoryItems}
                 onValueChange={(v) => setFormData({ ...formData, categoryId: v || "" })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择品类" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.data.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                items={categories.data.map((c) => ({ value: c.id, label: c.name }))}
+                placeholder="选择品类"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

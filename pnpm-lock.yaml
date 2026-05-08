@@ -56,6 +56,9 @@ importers:
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
+      tiny-pinyin:
+        specifier: ^1.3.2
+        version: 1.3.2
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -3227,6 +3230,9 @@ packages:
 
   tiny-invariant@1.3.3:
     resolution: {integrity: sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==}
+
+  tiny-pinyin@1.3.2:
+    resolution: {integrity: sha512-uHNGu4evFt/8eNLldazeAM1M8JrMc1jshhJJfVRARTN3yT8HEEibofeQ7QETWQ5ISBjd6fKtTVBCC/+mGS6FpA==}
 
   tinyexec@1.0.4:
     resolution: {integrity: sha512-u9r3uZC0bdpGOXtlxUIdwf9pkmvhqJdrVCH9fapQtgy/OeTTMZ1nqH7agtvEfmGui6e1XxjcdrlxvxJvc3sMqw==}
@@ -6841,6 +6847,8 @@ snapshots:
   tapable@2.3.2: {}
 
   tiny-invariant@1.3.3: {}
+
+  tiny-pinyin@1.3.2: {}
 
   tinyexec@1.0.4: {}
 

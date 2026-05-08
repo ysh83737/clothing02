@@ -11,25 +11,27 @@ datasource db {
 
 // 服装品类
 model ClothingCategory {
-  id        String   @id @default(cuid())
-  name      String   // 品类名称，如"裤子"、"衬衫"
-  nameEn    String?  // 英文名称
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  name       String   // 品类名称，如"裤子"、"衬衫"
+  nameEn     String?  // 英文名称
+  namePinyin String?  // 拼音检索（全拼+首字母）
+  createdAt  DateTime @default(now())
 
   items ClothingItem[]
 }
 
 // 服装库存
 model ClothingItem {
-  id                 String   @id @default(cuid())
-  name               String   // 服装名称，如"M码黑色裤子"
-  categoryId         String
-  size               String?  // 尺码，如"S"、"M"、"L"、"XL"
-  totalQuantity      Int      @default(0) // 总库存数量
-  availableQuantity  Int      @default(0) // 可用数量（未被借出）
-  lostQuantity       Int      @default(0) // 已丢失数量
-  unit               String   @default("件") // 单位
-  createdAt          DateTime @default(now())
+  id                String   @id @default(cuid())
+  name              String   // 服装名称，如"M码黑色裤子"
+  namePinyin        String?  // 拼音检索（全拼+首字母）
+  categoryId        String
+  size              String?  // 尺码，如"S"、"M"、"L"、"XL"
+  totalQuantity     Int      @default(0) // 总库存数量
+  availableQuantity Int      @default(0) // 可用数量（未被借出）
+  lostQuantity      Int      @default(0) // 已丢失数量
+  unit              String   @default("件") // 单位
+  createdAt         DateTime @default(now())
 
   category ClothingCategory @relation(fields: [categoryId], references: [id])
   loanRecords LoanRecord[]
@@ -41,6 +43,7 @@ model ClothingItem {
 model Employee {
   id         String   @id @default(cuid())
   name       String
+  namePinyin String?  // 拼音检索（全拼+首字母）
   department String?
   phone      String?
   createdAt  DateTime @default(now())
@@ -54,6 +57,7 @@ model Employee {
 model LoanEvent {
   id          String   @id @default(cuid())
   name        String   // 活动名称，如"2024年会"
+  namePinyin  String?  // 拼音检索（全拼+首字母）
   description String?
   status      String   @default("active") // active, closed
   createdAt   DateTime @default(now())

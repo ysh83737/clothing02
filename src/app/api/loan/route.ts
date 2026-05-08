@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
+import { computeNamePinyin } from "@/lib/pinyin";
 
 // GET /api/loan - 获取所有活动
 export async function GET(request: Request) {
@@ -11,7 +12,12 @@ export async function GET(request: Request) {
     const status = searchParams.get("status");
 
     const where: Record<string, unknown> = {};
-    if (search) where.name = { contains: search };
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { namePinyin: { contains: search.toLowerCase() } },
+      ];
+    }
     if (status) where.status = status;
 
     const [events, total] = await Promise.all([
@@ -108,6 +114,7 @@ export async function POST(request: Request) {
     const event = await prisma.loanEvent.create({
       data: {
         name,
+        namePinyin: computeNamePinyin(name),
         description,
         status: "active",
       },
@@ -140,6 +147,7 @@ export async function PUT(request: Request) {
       where: { id },
       data: {
         name,
+        namePinyin: name ? computeNamePinyin(name) : undefined,
         description,
         status,
       },
