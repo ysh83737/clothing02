@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Search, Pencil, Trash2, FolderOpen } from "lucide-react";
+import { useState, useRef } from "react";
+import { Plus, Search, Pencil, Trash2, FolderOpen, Upload, Download, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -233,6 +233,75 @@ export default function InventoryPage() {
     }
   };
 
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleBatchImport = async () => {
+    if (!selectedFile) {
+      toast.error("请选择文件");
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const res = await fetch("/api/inventory/batch", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        const { created, updated, skipped, errors } = data.data;
+        let message = `导入完成：新增 ${created} 条`;
+        if (updated > 0) message += `，追加 ${updated} 条`;
+        if (skipped > 0) {
+          const errorDetails = errors
+            .map((e: { row: number; name: string; reason: string }) =>
+              `第${e.row}行${e.name ? `(${e.name})` : ""}: ${e.reason}`
+            )
+            .join("；");
+          toast.warning(`${message}，跳过 ${skipped} 条\n${errorDetails}`);
+        } else {
+          toast.success(`${message}`);
+        }
+        setSelectedFile(null);
+        setIsImportDialogOpen(false);
+        inventory.refresh();
+      } else {
+        toast.error(data.error);
+      }
+    } catch {
+      toast.error("导入失败");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    import("xlsx").then((XLSX) => {
+      const wb = XLSX.utils.book_new();
+      const data = [
+        ["服装名称", "品类", "尺码", "数量", "单位"],
+        ["黑色西装裤", "裤子", "M", 50, "件"],
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, "库存");
+      XLSX.writeFile(wb, "库存导入模板.xlsx");
+    });
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -273,6 +342,16 @@ export default function InventoryPage() {
         >
           <Plus className="h-4 w-4 mr-2" />
           新增入库
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setSelectedFile(null);
+            setIsImportDialogOpen(true);
+          }}
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          批量导入
         </Button>
       </div>
 
@@ -473,6 +552,81 @@ export default function InventoryPage() {
               取消
             </Button>
             <Button onClick={handleEdit}>保存修改</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={(open) => {
+        setIsImportDialogOpen(open);
+        if (!open) setSelectedFile(null);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>批量导入库存</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-3">
+              <FileSpreadsheet className="h-10 w-10 mx-auto text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">上传 Excel 文件</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  支持 .xlsx / .xls 格式，第一行为表头：服装名称、品类、尺码、数量、单位
+                </p>
+              </div>
+              <div className="flex justify-center gap-2">
+                <Button
+                  variant="default"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  选择文件
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <Button variant="outline" onClick={handleDownloadTemplate}>
+                  <Download className="h-4 w-4 mr-2" />
+                  下载模板
+                </Button>
+              </div>
+            </div>
+            {selectedFile && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <FileSpreadsheet className="h-4 w-4" />
+                <span>{selectedFile.name}</span>
+                <button
+                  className="text-destructive hover:underline ml-auto"
+                  onClick={() => {
+                    setSelectedFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                >
+                  移除
+                </button>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsImportDialogOpen(false);
+                setSelectedFile(null);
+              }}
+            >
+              取消
+            </Button>
+            <Button
+              onClick={handleBatchImport}
+              disabled={!selectedFile || isImporting}
+            >
+              {isImporting ? "导入中..." : "确认导入"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
