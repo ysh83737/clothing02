@@ -14,6 +14,7 @@ interface SearchToolbarProps {
   selectedEmployee?: string;
   onEventChange?: (value: string) => void;
   onEmployeeChange?: (value: string) => void;
+  extraButtons?: React.ReactNode;
 }
 
 export function SearchToolbar({
@@ -26,6 +27,7 @@ export function SearchToolbar({
   selectedEmployee = "all",
   onEventChange,
   onEmployeeChange,
+  extraButtons,
 }: SearchToolbarProps) {
   return (
     <div className="flex flex-col sm:flex-row gap-4">
@@ -69,6 +71,7 @@ export function SearchToolbar({
           }
         </SearchableSelect>
       )}
+      {extraButtons && <div className="flex items-center gap-2 shrink-0">{extraButtons}</div>}
     </div>
   );
 }

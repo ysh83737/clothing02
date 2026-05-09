@@ -23,8 +23,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
+import { fetchAllForExport, downloadExcel } from "@/lib/export-utils";
 import { SearchToolbar } from "./search-toolbar";
 import { toast } from "sonner";
+import { Download } from "lucide-react";
 
 interface LoanRecord {
   id: string;
@@ -162,12 +164,49 @@ export function PendingReturnTab({ refreshKey, onRefresh }: PendingReturnTabProp
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const allData = await fetchAllForExport<LoanRecord>("/api/loan-record", {
+        ...(records.search ? { search: records.search } : {}),
+      });
+      const pendingData = allData.filter((r) => {
+        const lostQty = r.lostRecords?.reduce((sum, lr) => sum + lr.quantity, 0) || 0;
+        return r.quantity - (r.returnedQuantity || 0) - lostQty > 0;
+      });
+      const now = new Date().toISOString().slice(0, 10);
+      downloadExcel(
+        pendingData,
+        [
+          { header: "员工", accessor: (r) => r.employee.name },
+          { header: "部门", accessor: (r) => r.employee.department || "-" },
+          { header: "服装", accessor: (r) => r.clothingItem.name },
+          { header: "品类", accessor: (r) => r.clothingItem.category.name },
+          { header: "活动", accessor: (r) => r.loanEvent.name },
+          { header: "待归还数量", accessor: (r) => {
+            const lostQty = r.lostRecords?.reduce((sum, lr) => sum + lr.quantity, 0) || 0;
+            return r.quantity - (r.returnedQuantity || 0) - lostQty;
+          }},
+          { header: "借出时间", accessor: (r) => new Date(r.borrowedAt).toLocaleDateString("zh-CN") },
+        ],
+        `待归还_${now}.xlsx`
+      );
+    } catch {
+      toast.error("导出失败");
+    }
+  };
+
   return (
     <div className="space-y-4">
       <SearchToolbar
         search={records.search}
         onSearchChange={records.setSearch}
         placeholder="搜索员工、服装或活动..."
+        extraButtons={
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-1" />
+            导出
+          </Button>
+        }
       />
 
       <div className="border rounded-lg">

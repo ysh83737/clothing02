@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
+import { getPaginationParams, paginatedResponse, isExportMode } from "@/lib/api-helpers";
 
 // GET /api/lost-record - 获取丢失记录列表
 export async function GET(request: Request) {
@@ -13,6 +13,7 @@ export async function GET(request: Request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const search = searchParams.get("search");
+    const isExport = isExportMode(searchParams);
 
     const where: Record<string, unknown> = {};
 
@@ -87,11 +88,14 @@ export async function GET(request: Request) {
           },
         },
         orderBy: { lostAt: "desc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        ...(isExport ? {} : { skip: (page - 1) * pageSize, take: pageSize }),
       }),
-      prisma.lostRecord.count({ where }),
+      isExport ? Promise.resolve(0) : prisma.lostRecord.count({ where }),
     ]);
+
+    if (isExport) {
+      return NextResponse.json({ success: true, data: records });
+    }
 
     return NextResponse.json(paginatedResponse(records, total, { page, pageSize }));
   } catch (error) {

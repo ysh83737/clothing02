@@ -47,3 +47,7 @@ export function buildSearchWhere(search: string | null, fields: string[]): Recor
     OR: fields.map((field) => ({ [field]: { contains: search } })),
   };
 }
+
+export function isExportMode(searchParams: URLSearchParams): boolean {
+  return searchParams.get("export") === "1";
+}

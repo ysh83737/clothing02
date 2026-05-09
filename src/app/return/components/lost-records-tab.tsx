@@ -20,7 +20,10 @@ import {
 } from "@/components/ui/dialog";
 import { Pagination } from "@/components/ui/pagination";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
+import { fetchAllForExport, downloadExcel } from "@/lib/export-utils";
 import { SearchToolbar } from "./search-toolbar";
+import { Download } from "lucide-react";
+import { toast } from "sonner";
 
 interface LostRecord {
   id: string;
@@ -67,6 +70,34 @@ export function LostRecordsTab({
     setIsDetailDialogOpen(true);
   };
 
+  const handleExport = async () => {
+    try {
+      const data = await fetchAllForExport<LostRecord>("/api/lost-record", {
+        ...(records.search ? { search: records.search } : {}),
+        ...(records.filters.eventId ? { eventId: records.filters.eventId } : {}),
+        ...(records.filters.employeeId ? { employeeId: records.filters.employeeId } : {}),
+      });
+      const now = new Date().toISOString().slice(0, 10);
+      downloadExcel(
+        data,
+        [
+          { header: "员工", accessor: (r) => r.employee.name },
+          { header: "部门", accessor: (r) => r.employee.department || "-" },
+          { header: "服装", accessor: (r) => r.clothingItem.name },
+          { header: "品类", accessor: (r) => r.clothingItem.category.name },
+          { header: "活动", accessor: (r) => r.loanRecord.loanEvent.name },
+          { header: "丢失数量", accessor: (r) => `${r.quantity} ${r.clothingItem.unit}` },
+          { header: "丢失时间", accessor: (r) => new Date(r.lostAt).toLocaleDateString("zh-CN") },
+          { header: "原因", accessor: (r) => r.reason || "-" },
+          { header: "备注", accessor: (r) => r.remark || "-" },
+        ],
+        `丢失记录_${now}.xlsx`
+      );
+    } catch {
+      toast.error("导出失败");
+    }
+  };
+
   return (
     <div className="space-y-4">
       <SearchToolbar
@@ -82,6 +113,12 @@ export function LostRecordsTab({
         }
         onEmployeeChange={(v) =>
           records.setFilters(v === "all" ? { eventId: records.filters.eventId || "" } : { ...records.filters, employeeId: v })
+        }
+        extraButtons={
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-1" />
+            导出
+          </Button>
         }
       />
 

@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/header";
 import { Pagination } from "@/components/ui/pagination";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
+import { fetchAllForExport, downloadExcel } from "@/lib/export-utils";
 import { toast } from "sonner";
 
 interface Category {
@@ -302,6 +303,31 @@ export default function InventoryPage() {
     });
   };
 
+  const handleExport = async () => {
+    try {
+      const data = await fetchAllForExport<InventoryItem>("/api/inventory", {
+        ...(inventory.search ? { search: inventory.search } : {}),
+        ...(inventory.filters.categoryId ? { categoryId: inventory.filters.categoryId } : {}),
+      });
+      const now = new Date().toISOString().slice(0, 10);
+      downloadExcel(
+        data,
+        [
+          { header: "服装名称", accessor: (item) => item.name },
+          { header: "品类", accessor: (item) => item.category.name },
+          { header: "尺码", accessor: (item) => item.size || "-" },
+          { header: "总库存", accessor: (item) => item.totalQuantity },
+          { header: "可用数量", accessor: (item) => item.availableQuantity },
+          { header: "借出中", accessor: (item) => item.borrowedQuantity },
+          { header: "丢失", accessor: (item) => item.lostQuantity },
+        ],
+        `库存数据_${now}.xlsx`
+      );
+    } catch {
+      toast.error("导出失败");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -325,7 +351,7 @@ export default function InventoryPage() {
           onValueChange={(v) => inventory.setFilters(v === "all" ? {} : { categoryId: v || "" })}
           items={selectCategoryItems}
           placeholder="筛选品类"
-          triggerClassName="w-full sm:w-[300px]"
+          triggerClassName="w-full sm:w-[250px]"
         />
         <Button
           variant="outline"
@@ -342,6 +368,10 @@ export default function InventoryPage() {
         >
           <Plus className="h-4 w-4 mr-2" />
           新增入库
+        </Button>
+        <Button variant="outline" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-2" />
+          导出
         </Button>
         <Button
           variant="outline"

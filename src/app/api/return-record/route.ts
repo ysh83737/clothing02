@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
+import { getPaginationParams, paginatedResponse, isExportMode } from "@/lib/api-helpers";
 
 // GET /api/return-record - 获取所有归还记录
 export async function GET(request: Request) {
@@ -10,6 +10,7 @@ export async function GET(request: Request) {
     const eventId = searchParams.get("eventId");
     const employeeId = searchParams.get("employeeId");
     const search = searchParams.get("search");
+    const isExport = isExportMode(searchParams);
 
     const where: Record<string, unknown> = {};
     if (eventId) {
@@ -62,11 +63,14 @@ export async function GET(request: Request) {
           },
         },
         orderBy: { returnedAt: "desc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        ...(isExport ? {} : { skip: (page - 1) * pageSize, take: pageSize }),
       }),
-      prisma.returnRecord.count({ where }),
+      isExport ? Promise.resolve(0) : prisma.returnRecord.count({ where }),
     ]);
+
+    if (isExport) {
+      return NextResponse.json({ success: true, data: records });
+    }
 
     return NextResponse.json(paginatedResponse(records, total, { page, pageSize }));
   } catch (error) {

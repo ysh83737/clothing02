@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
+import { getPaginationParams, paginatedResponse, isExportMode } from "@/lib/api-helpers";
 import { computeNamePinyin } from "@/lib/pinyin";
 
 // GET /api/employee - 获取所有员工
@@ -9,6 +9,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const { page, pageSize } = getPaginationParams(searchParams);
     const search = searchParams.get("search");
+    const isExport = isExportMode(searchParams);
 
     const where: Record<string, unknown> = {};
     if (search) {
@@ -32,10 +33,9 @@ export async function GET(request: Request) {
           },
         },
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        ...(isExport ? {} : { skip: (page - 1) * pageSize, take: pageSize }),
       }),
-      prisma.employee.count({ where }),
+      isExport ? Promise.resolve(0) : prisma.employee.count({ where }),
     ]);
 
     // 计算每个员工的借出数量
@@ -44,6 +44,10 @@ export async function GET(request: Request) {
       borrowedCount: emp.loanRecords.filter((r) => r.status === "borrowed").length,
       totalLoans: emp.loanRecords.length,
     }));
+
+    if (isExport) {
+      return NextResponse.json({ success: true, data: result });
+    }
 
     return NextResponse.json(paginatedResponse(result, total, { page, pageSize }));
   } catch (error) {

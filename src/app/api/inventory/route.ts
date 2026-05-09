@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { getPaginationParams, paginatedResponse } from "@/lib/api-helpers";
+import { getPaginationParams, paginatedResponse, isExportMode } from "@/lib/api-helpers";
 import { computeNamePinyin } from "@/lib/pinyin";
 
 // GET /api/inventory - 获取所有库存
@@ -10,6 +10,7 @@ export async function GET(request: Request) {
     const { page, pageSize } = getPaginationParams(searchParams);
     const categoryId = searchParams.get("categoryId");
     const search = searchParams.get("search");
+    const isExport = isExportMode(searchParams);
 
     const where: Record<string, unknown> = {};
     if (categoryId) where.categoryId = categoryId;
@@ -34,10 +35,9 @@ export async function GET(request: Request) {
           },
         },
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        ...(isExport ? {} : { skip: (page - 1) * pageSize, take: pageSize }),
       }),
-      prisma.clothingItem.count({ where }),
+      isExport ? Promise.resolve(0) : prisma.clothingItem.count({ where }),
     ]);
 
     // 添加计算字段
@@ -45,6 +45,10 @@ export async function GET(request: Request) {
       ...item,
       borrowedQuantity: item.totalQuantity - item.availableQuantity - item.lostQuantity,
     }));
+
+    if (isExport) {
+      return NextResponse.json({ success: true, data: itemsWithStats });
+    }
 
     return NextResponse.json(paginatedResponse(itemsWithStats, total, { page, pageSize }));
   } catch (error) {

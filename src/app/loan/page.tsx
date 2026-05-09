@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Package, CheckCircle, Trash2 } from "lucide-react";
+import { Plus, Search, Package, CheckCircle, Trash2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/layout/header";
 import { Pagination } from "@/components/ui/pagination";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
+import { fetchAllForExport, downloadExcel } from "@/lib/export-utils";
 import { toast } from "sonner";
 
 interface InventoryItem {
@@ -229,6 +230,78 @@ export default function LoanPage() {
 
   const availInventory = inventory.data.filter((i: InventoryItem) => i.availableQuantity > 0);
 
+  const handleActiveEventsExport = async () => {
+    try {
+      const data = await fetchAllForExport<LoanEvent>("/api/loan", {
+        status: "active",
+        ...(debouncedPageSearch ? { search: debouncedPageSearch } : {}),
+      });
+      const now = new Date().toISOString().slice(0, 10);
+      downloadExcel(
+        data,
+        [
+          { header: "活动名称", accessor: (e) => e.name },
+          { header: "描述", accessor: (e) => e.description || "-" },
+          { header: "借出", accessor: (e) => e.stats.totalBorrowed },
+          { header: "归还", accessor: (e) => e.stats.totalReturned },
+          { header: "丢失", accessor: (e) => e.stats.totalLost },
+          { header: "未还", accessor: (e) => e.stats.totalActive },
+          { header: "记录数", accessor: (e) => e.stats.recordCount },
+        ],
+        `进行中的活动_${now}.xlsx`
+      );
+    } catch {
+      toast.error("导出失败");
+    }
+  };
+
+  const handleClosedEventsExport = async () => {
+    try {
+      const data = await fetchAllForExport<LoanEvent>("/api/loan", {
+        status: "closed",
+        ...(debouncedPageSearch ? { search: debouncedPageSearch } : {}),
+      });
+      const now = new Date().toISOString().slice(0, 10);
+      downloadExcel(
+        data,
+        [
+          { header: "活动名称", accessor: (e) => e.name },
+          { header: "描述", accessor: (e) => e.description || "-" },
+          { header: "借出", accessor: (e) => e.stats.totalBorrowed },
+          { header: "归还", accessor: (e) => e.stats.totalReturned },
+          { header: "丢失", accessor: (e) => e.stats.totalLost },
+        ],
+        `已关闭的活动_${now}.xlsx`
+      );
+    } catch {
+      toast.error("导出失败");
+    }
+  };
+
+  const handleLoanRecordsExport = async () => {
+    try {
+      const data = await fetchAllForExport<LoanRecord>("/api/loan-record", {
+        ...(loanRecords.search ? { search: loanRecords.search } : {}),
+      });
+      const now = new Date().toISOString().slice(0, 10);
+      downloadExcel(
+        data,
+        [
+          { header: "员工", accessor: (r) => r.employee.name },
+          { header: "部门", accessor: (r) => r.employee.department || "-" },
+          { header: "服装", accessor: (r) => r.clothingItem.name },
+          { header: "品类", accessor: (r) => r.clothingItem.category.name },
+          { header: "数量", accessor: (r) => `${r.quantity} ${r.clothingItem.unit}` },
+          { header: "状态", accessor: (r) => ({ borrowed: "借出中", returned: "已归还", lost: "丢失" })[r.status] ?? r.status },
+          { header: "借出时间", accessor: (r) => new Date(r.borrowedAt).toLocaleDateString("zh-CN") },
+        ],
+        `借出记录_${now}.xlsx`
+      );
+    } catch {
+      toast.error("导出失败");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -259,7 +332,13 @@ export default function LoanPage() {
 
           {/* Active Events */}
           <div>
-            <h3 className="text-lg font-medium mb-3">进行中的活动</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-medium">进行中的活动</h3>
+              <Button variant="outline" size="sm" onClick={handleActiveEventsExport}>
+                <Download className="h-4 w-4 mr-1" />
+                导出
+              </Button>
+            </div>
             {activeEvents.loading ? (
               <div className="text-center py-8 text-muted-foreground border rounded-lg">
                 加载中...
@@ -346,7 +425,13 @@ export default function LoanPage() {
           {closedEvents.total > 0 && (
             <>
               <div>
-                <h3 className="text-lg font-medium mb-3">已关闭的活动</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-medium">已关闭的活动</h3>
+                  <Button variant="outline" size="sm" onClick={handleClosedEventsExport}>
+                    <Download className="h-4 w-4 mr-1" />
+                    导出
+                  </Button>
+                </div>
                 <div className="border rounded-lg">
                   <Table>
                     <TableHeader>
@@ -397,13 +482,17 @@ export default function LoanPage() {
 
         {/* Records Tab */}
         <TabsContent value="records">
-          <div className="mb-4">
+          <div className="mb-4 flex gap-2">
             <Input
               placeholder="搜索借出记录..."
               value={loanRecords.search}
               onChange={(e) => loanRecords.setSearch(e.target.value)}
               className="max-w-xs"
             />
+            <Button variant="outline" onClick={handleLoanRecordsExport}>
+              <Download className="h-4 w-4 mr-1" />
+              导出
+            </Button>
           </div>
           <div className="border rounded-lg">
             <Table>

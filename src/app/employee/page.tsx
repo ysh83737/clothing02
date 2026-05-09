@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/header";
 import { Pagination } from "@/components/ui/pagination";
 import { usePaginatedFetch } from "@/hooks/use-paginated-fetch";
+import { fetchAllForExport, downloadExcel } from "@/lib/export-utils";
 import { toast } from "sonner";
 
 interface Employee {
@@ -183,6 +184,28 @@ export default function EmployeePage() {
     });
   };
 
+  const handleExport = async () => {
+    try {
+      const data = await fetchAllForExport<Employee>("/api/employee", {
+        ...(employees.search ? { search: employees.search } : {}),
+      });
+      const now = new Date().toISOString().slice(0, 10);
+      downloadExcel(
+        data,
+        [
+          { header: "姓名", accessor: (emp) => emp.name },
+          { header: "部门", accessor: (emp) => emp.department || "-" },
+          { header: "电话", accessor: (emp) => emp.phone || "-" },
+          { header: "当前借出", accessor: (emp) => emp.borrowedCount },
+          { header: "总借出次数", accessor: (emp) => emp.totalLoans },
+        ],
+        `员工数据_${now}.xlsx`
+      );
+    } catch {
+      toast.error("导出失败");
+    }
+  };
+
   const resetForm = () => {
     setFormData({ name: "", department: "", phone: "" });
   };
@@ -207,6 +230,10 @@ export default function EmployeePage() {
           onChange={(e) => employees.setSearch(e.target.value)}
           className="max-w-xs"
         />
+        <Button variant="outline" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-2" />
+          导出
+        </Button>
         <Button
           onClick={() => {
             resetForm();
